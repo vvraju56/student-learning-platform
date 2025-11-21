@@ -7,8 +7,8 @@
 #include <ArduinoJson.h> // Requires ArduinoJson library
 
 // ===== WiFi & Supabase Configuration =====
-#define WIFI_SSID "YOUR_WIFI_SSID"
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
+#define WIFI_SSID "VVRAJU"
+#define WIFI_PASSWORD "123456780"
 
 // Supabase Configuration
 #define SUPABASE_URL "https://YOUR_PROJECT_REF.supabase.co"
