@@ -1,0 +1,28 @@
+{
+  "rules": {
+    "alerts": {
+      "{userId}": {
+        "incidents": {
+          "{incidentId}": {
+            ".read": "request.auth.uid == root.child('alerts').child(userId).child('incidents').child(incidentId).child('userId').val() || root.child('users').child(request.auth.uid).child('isAdmin').val() == true",
+            ".write": "request.resource.data.userId == userId"
+          }
+        }
+      }
+    },
+    "realtime": {
+      "{userId}": {
+        "current": {
+          ".read": "request.auth.uid == userId || root.child('users').child(request.auth.uid).child('isAdmin').val() == true",
+          ".write": "request.auth.uid == userId"
+        }
+      }
+    },
+    "users": {
+      "{userId}": {
+        ".read": "request.auth.uid == userId || root.child('users').child(request.auth.uid).child('isAdmin').val() == true",
+        ".write": "request.auth.uid == userId"
+      }
+    }
+  }
+}
