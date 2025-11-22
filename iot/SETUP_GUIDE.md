@@ -57,7 +57,7 @@ GND --------> HC-SR04 GND
    - Note your Project URL and Anon Key
 
 2. **Create Tables:**
-
+   - Run the SQL script to create `users`, `alerts`, `monitoring_logs`, and `quiz_scores` tables.
 
 3. **Update ESP32 Code:**
    \`\`\`cpp

@@ -50,7 +50,7 @@ export default function Navigation({ user, onLogout }: NavigationProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600 hidden sm:inline">{user.displayName}</span>
+            <span className="text-sm text-gray-600 hidden sm:inline">{user.username}</span>
             <button
               onClick={handleLogout}
               className="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition"

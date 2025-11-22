@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error: any) {
-    console.error(' Add alert error:', error);
+    console.error('Add alert error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to add alert' },
       { status: 500 }

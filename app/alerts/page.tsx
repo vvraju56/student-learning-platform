@@ -32,7 +32,7 @@ export default function AlertsPage() {
     try {
       await clearAlerts();
     } catch (error) {
-      console.error(' Error clearing alerts:', error);
+      console.error('Error clearing alerts:', error);
     } finally {
       setIsClearing(false);
     }

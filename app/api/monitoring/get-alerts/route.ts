@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       { status: 200 }
     );
   } catch (error: any) {
-    console.error(' Get alerts error:', error);
+    console.error('Get alerts error:', error);
     return NextResponse.json(
       { error: error.message || 'Failed to get alerts' },
       { status: 500 }

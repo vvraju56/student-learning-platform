@@ -60,7 +60,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       setError("Google sign-in error. Please try again.")
-      console.error(" Google sign-in error:", err)
+      console.error("Google sign-in error:", err)
     } finally {
       setGoogleLoading(false)
     }
@@ -77,8 +77,6 @@ export default function LoginPage() {
         <p className="text-gray-600 mb-6">Sign in to your learning platform</p>
 
         {error && <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">{error}</div>}
-
-
 
         <button
           onClick={handleGoogleSignIn}

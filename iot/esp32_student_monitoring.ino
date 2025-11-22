@@ -1,3 +1,8 @@
+/*
+  ESP32 Student Posture & Attention Monitoring System
+  Sends real-time sensor data to Supabase via REST API
+  Sensors: MPU6050 (posture), PIR (presence), Ultrasonic (distance), IR (face detection)
+*/
 
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -7,8 +12,8 @@
 #include <ArduinoJson.h> // Requires ArduinoJson library
 
 // ===== WiFi & Supabase Configuration =====
-#define WIFI_SSID "VVRAJU"
-#define WIFI_PASSWORD "123456780"
+#define WIFI_SSID "YOUR_WIFI_SSID"
+#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"
 
 // Supabase Configuration
 #define SUPABASE_URL "https://YOUR_PROJECT_REF.supabase.co"

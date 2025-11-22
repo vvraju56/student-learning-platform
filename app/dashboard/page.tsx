@@ -55,7 +55,7 @@ export default function DashboardPage() {
       <main className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800">Welcome back, {user.displayName}!</h1>
+          <h1 className="text-4xl font-bold text-gray-800">Welcome back, {user.username}!</h1>
           <p className="text-gray-600 mt-2">Monitor your learning progress in real-time</p>
         </div>
 

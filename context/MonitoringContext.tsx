@@ -145,7 +145,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
             return
           }
         } catch (supabaseError) {
-          console.error(" Supabase alert error, using localStorage:", supabaseError)
+          console.error("Supabase alert error, using localStorage:", supabaseError)
         }
       }
 
@@ -156,7 +156,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("alerts", JSON.stringify(existingAlerts.slice(0, 50)))
       setAlerts((prev) => [alertWithUser, ...prev].slice(0, 50))
     } catch (error) {
-      console.error(" Error adding alert:", error)
+      console.error("Error adding alert:", error)
     }
   }
 
@@ -186,7 +186,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
             return
           }
         } catch (supabaseError) {
-          console.error(" Supabase get alerts error, using localStorage:", supabaseError)
+          console.error("Supabase get alerts error, using localStorage:", supabaseError)
         }
       }
 
@@ -197,7 +197,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
         setAlerts(filtered.slice(0, 50))
       }
     } catch (error) {
-      console.error(" Error loading alerts:", error)
+      console.error("Error loading alerts:", error)
     }
   }
 
@@ -212,7 +212,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
           setAlerts([])
           return
         } catch (supabaseError) {
-          console.error(" Supabase clear alerts error, using localStorage:", supabaseError)
+          console.error("Supabase clear alerts error, using localStorage:", supabaseError)
         }
       }
 
@@ -222,7 +222,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("alerts", JSON.stringify(filtered))
       setAlerts([])
     } catch (error) {
-      console.error(" Error clearing alerts:", error)
+      console.error("Error clearing alerts:", error)
     }
   }
 
@@ -241,7 +241,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
           setQuizScores((prev) => [...prev, score])
           return
         } catch (supabaseError) {
-          console.error(" Supabase add score error, using localStorage:", supabaseError)
+          console.error("Supabase add score error, using localStorage:", supabaseError)
         }
       }
 
@@ -252,7 +252,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
       localStorage.setItem("quizScores", JSON.stringify(existingScores))
       setQuizScores((prev) => [...prev, score])
     } catch (error) {
-      console.error(" Error adding quiz score:", error)
+      console.error("Error adding quiz score:", error)
     }
   }
 
@@ -273,7 +273,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
             return
           }
         } catch (supabaseError) {
-          console.error(" Supabase get quiz scores error, using localStorage:", supabaseError)
+          console.error("Supabase get quiz scores error, using localStorage:", supabaseError)
         }
       }
 
@@ -284,7 +284,7 @@ export function MonitoringProvider({ children }: { children: ReactNode }) {
         setQuizScores(filtered)
       }
     } catch (error) {
-      console.error(" Error loading quiz scores:", error)
+      console.error("Error loading quiz scores:", error)
     }
   }
 

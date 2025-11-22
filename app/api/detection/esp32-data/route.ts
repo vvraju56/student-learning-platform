@@ -25,7 +25,7 @@ export async function POST(request: Request) {
 
     return Response.json({ success: true, data: sensorData });
   } catch (error) {
-    console.error(' ESP32 data error:', error);
+    console.error('ESP32 data error:', error);
     return Response.json({ error: 'Failed to process ESP32 data' }, { status: 500 });
   }
 }

@@ -41,7 +41,7 @@ export function usePostureDetection() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load detection libraries';
         setError(errorMessage);
-        console.error(' Detection library load error:', err);
+        console.error('Detection library load error:', err);
       }
     };
 
@@ -73,7 +73,7 @@ export function usePostureDetection() {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to initialize detection';
         setError(errorMessage);
-        console.error(' Posture detection error:', err);
+        console.error('Posture detection error:', err);
       }
     };
 

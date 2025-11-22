@@ -10,8 +10,7 @@ const _geistMono = Geist_Mono({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: 'Student Learning Platform',
   description: 'Monitor your posture and attention while learning',
-
-}
+  }
 
 export default function RootLayout({
   children,

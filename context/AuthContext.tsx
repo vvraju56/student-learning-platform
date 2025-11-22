@@ -38,7 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setUser(JSON.parse(currentUserStr))
       } catch (error) {
-        console.error(" Error loading user:", error)
+        console.error("Error loading user:", error)
       }
     }
     setLoading(false)
@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         const errorData = await response.json()
-        console.error(" Registration error:", errorData)
+        console.error("Registration error:", errorData)
         return false
       }
 
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(newUser)
       return true
     } catch (error) {
-      console.error(" Registration error:", error)
+      console.error("Registration error:", error)
       return false
     }
   }
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
       if (!response.ok) {
-        console.error(" Login failed")
+        console.error("Login failed")
         return false
       }
 
@@ -117,7 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return true
         }
       } catch (fallbackError) {
-        console.error(" Login error:", fallbackError)
+        console.error("Login error:", fallbackError)
       }
       return false
     }
@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
 
       if (!response.ok) {
-        console.error(" Google sign-in failed")
+        console.error("Google sign-in failed")
         return false
       }
 
@@ -149,16 +149,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           email: userObj.email,
           name: userObj.username,
         })
-        if (error) console.error(" Supabase user sync error:", error)
+        if (error) console.error("Supabase user sync error:", error)
       } catch (sbError) {
-        console.error(" Supabase error:", sbError)
+        console.error("Supabase error:", sbError)
       }
 
       localStorage.setItem("currentUser", JSON.stringify(userObj))
       setUser(userObj)
       return true
     } catch (error) {
-      console.error(" Google sign-in error:", error)
+      console.error("Google sign-in error:", error)
       return false
     }
   }

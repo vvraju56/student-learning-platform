@@ -58,7 +58,7 @@ export default function QuizPage() {
         await addQuizScore(score);
         setShowResults(true);
       } catch (error) {
-        console.error(' Error submitting quiz score:', error);
+        console.error('Error submitting quiz score:', error);
       } finally {
         setIsSubmitting(false);
       }
