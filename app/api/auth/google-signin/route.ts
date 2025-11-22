@@ -2,12 +2,14 @@ import { type NextRequest, NextResponse } from "next/server"
 
 export async function POST(req: NextRequest) {
   try {
-    // Generate a mock Google user response for preview mode
-    // In production, this would validate the Google ID token
+    // NOTE: This is a mock implementation for preview mode.
+    // In a production environment, you would validate the Google ID token
+    // received from the client and extract the user's actual profile information
+    // from the token's payload. Replace this mock with a real authentication flow.
     const googleUser = {
       uid: "google_" + Date.now(),
       email: "user@example.com",
-      displayName: "Google User",
+      displayName: "Mock Google User - [Replace with actual user name from token]",
       photoURL: "https://via.placeholder.com/150",
     }
 
