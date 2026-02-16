@@ -1,0 +1,15 @@
+{
+  "dependencies": {
+    "face-api.js": "^0.22.2",
+    "@types/face-api.js": "^0.22.2",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "lucide-react": "^0.263.1",
+    "firebase": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "typescript": "^5.0.0"
+  }
+}
