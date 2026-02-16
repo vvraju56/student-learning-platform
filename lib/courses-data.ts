@@ -144,7 +144,20 @@ export const courses: Course[] = [
             keyPoints: ["GitHub Pages", "Netlify deployment", "Custom domains"],
             topics: ["hosting", "github", "netlify"]
           }
-        ]
+        ],
+        quiz: {
+          moduleNumber: 1,
+          mcqQuestions: [
+            { question: "HTML stands for?", options: ["Hyper Text Markup Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language"], correctAnswer: 0 },
+            { question: "CSS is used for?", options: ["Database", "Styling", "Server-side programming"], correctAnswer: 1 },
+            { question: "JavaScript is a?", options: ["Markup language", "Programming language", "Database"], correctAnswer: 1 },
+            { question: "Which tag is used for largest heading?", options: ["h6", "h1", "head"], correctAnswer: 1 },
+            { question: "CSS stands for?", options: ["Creative Style Sheets", "Cascading Style Sheets", "Computer Style Sheets"], correctAnswer: 1 },
+            { question: "Which is correct CSS syntax?", options: ["body:color=green;", "body {color: green;}", "{body;color:green;}"], correctAnswer: 1 },
+            { question: "How do you select an element with id 'demo'?", options: [".demo", "#demo", "demo"], correctAnswer: 1 },
+            { question: "Which is correct for JavaScript array?", options: ["var arr = (1,2,3)", "var arr = [1,2,3]", "var arr = {1,2,3}"], correctAnswer: 1 }
+          ]
+        }
       }
     ]
   },
