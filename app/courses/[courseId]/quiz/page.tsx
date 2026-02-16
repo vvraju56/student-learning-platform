@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { auth, db } from "@/lib/firebase"
 import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore"
@@ -15,15 +15,17 @@ import {
   ArrowLeft, 
   ArrowRight, 
   Award, 
-  BookOpen,
-  Target,
   Monitor,
   Camera,
   Eye,
-  AlertTriangle,
   Shield,
   Timer,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  Lock,
+  Unlock,
+  Check,
+  X
 } from "lucide-react"
 
 interface QuizPageProps {
@@ -34,20 +36,21 @@ interface QuizPageProps {
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * QUIZ PAGE - COMPREHENSIVE ASSESSMENT SYSTEM
+ * QUIZ PAGE - DARK EXAM THEME
  * 
- * Features:
- * ✅ Timer System (10 minutes) - Only counts when monitoring is valid
- * ✅ AI Monitoring - Camera, Face Detection, Tab Focus
- * ✅ Anti-Cheat - Auto-submit on violations
- * ✅ Auto-Save - Answers saved instantly to Firebase
- * ✅ Progress Tracking - Visual question grid
+ * Theme: "Focused Dark Exam Environment"
+ * - Reduce distractions
+ * - Increase seriousness
+ * - Match AI monitoring system
+ * - Clearly indicate locked/active states
  * 
- * Viva Explanation:
- * "The quiz page is a monitored assessment environment where the timer and 
- * submission are controlled by camera presence, face detection, and tab focus.
- * Answers are auto-saved, violations are logged, and progress is unlocked 
- * only upon successful completion."
+ * Color Palette:
+ * - Background: #0b0f14 (deep black-blue)
+ * - Card: #111827
+ * - Primary: #3b82f6 (blue)
+ * - Success: #22c55e (green)
+ * - Warning: #f59e0b (amber)
+ * - Danger: #ef4444 (red)
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
@@ -58,20 +61,16 @@ export default function QuizPage({ params }: QuizPageProps) {
   // STATE MANAGEMENT
   // ─────────────────────────────────────────────────────────────────────────
   
-  // Course data
   const [courseId, setCourseId] = useState<string>("")
   const [course, setCourse] = useState<any>(null)
-  
-  // Quiz progress
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [selectedAnswers, setSelectedAnswers] = useState<{[key: number]: number}>({})
   const [showResults, setShowResults] = useState(false)
   const [score, setScore] = useState(0)
   const [loading, setLoading] = useState(true)
   
-  // Timer state (10 minutes = 600 seconds)
-  const [timeLeft, setTimeLeft] = useState(600) // 10 minutes
-  const [timerActive, setTimerActive] = useState(false)
+  // Timer (10 minutes = 600 seconds)
+  const [timeLeft, setTimeLeft] = useState(600)
   
   // Monitoring state
   const [cameraActive, setCameraActive] = useState(false)
@@ -79,8 +78,9 @@ export default function QuizPage({ params }: QuizPageProps) {
   const [tabActive, setTabActive] = useState(true)
   const [violations, setViolations] = useState({ tabSwitch: 0, faceLost: 0 })
   const [monitoringStarted, setMonitoringStarted] = useState(false)
+  const [showViolationAlert, setShowViolationAlert] = useState(false)
   
-  // Submission state
+  // Submission
   const [submitting, setSubmitting] = useState(false)
   const [quizCompleted, setQuizCompleted] = useState(false)
 
@@ -102,10 +102,7 @@ export default function QuizPage({ params }: QuizPageProps) {
         }
         
         setCourse(selectedCourse)
-        
-        // Check if quiz already completed
         await checkQuizCompletion(selectedCourse)
-        
         setLoading(false)
       } catch (error) {
         console.error('Error initializing quiz:', error)
@@ -118,25 +115,18 @@ export default function QuizPage({ params }: QuizPageProps) {
 
   // ─────────────────────────────────────────────────────────────────────────
   // TIMER SYSTEM
-  // Timer only counts when ALL conditions are met:
-  // - Camera is active
-  // - Face is detected  
-  // - Tab is active/focused
-  // - Quiz is not completed
-  // ─────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // Timer only counts when: cameraActive && faceDetected && tabActive
+  // ═══════════════════════════════════════════════════════════════════════
   
   useEffect(() => {
-    // Timer runs ONLY when monitoring conditions are met
     const canCountTime = cameraActive && faceDetected && tabActive && !showResults && !quizCompleted
     
-    if (!canCountTime || timeLeft <= 0) {
-      return
-    }
+    if (!canCountTime || timeLeft <= 0) return
     
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          // Auto-submit when time runs out
           handleSubmitQuiz()
           return 0
         }
@@ -149,7 +139,11 @@ export default function QuizPage({ params }: QuizPageProps) {
 
   // ─────────────────────────────────────────────────────────────────────────
   // ANTI-CHEAT MONITORING
-  // ─────────────────────────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  // - Tab switch detection
+  // - Face detection (simulated)
+  // - Auto-submit on violations
+  // ═══════════════════════════════════════════════════════════════════════
   
   useEffect(() => {
     if (!monitoringStarted || showResults || quizCompleted) return
@@ -157,12 +151,14 @@ export default function QuizPage({ params }: QuizPageProps) {
     // Tab visibility detection
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // User switched tabs - VIOLATION!
         setTabActive(false)
-        setViolations(prev => ({ ...prev, tabSwitch: prev.tabSwitch + 1 }))
+        const newCount = violations.tabSwitch + 1
+        setViolations(prev => ({ ...prev, tabSwitch: newCount }))
+        setShowViolationAlert(true)
+        setTimeout(() => setShowViolationAlert(false), 3000)
         
         // Auto-submit after 3 tab switches
-        if (violations.tabSwitch >= 2) {
+        if (newCount >= 3) {
           alert('Quiz auto-submitted due to excessive tab switching')
           handleSubmitQuiz()
         }
@@ -175,28 +171,16 @@ export default function QuizPage({ params }: QuizPageProps) {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
   }, [monitoringStarted, showResults, quizCompleted, violations.tabSwitch])
 
-  // Simulated face detection (in real app, use camera API)
+  // Simulated face detection
   useEffect(() => {
     if (!monitoringStarted || showResults || quizCompleted) return
     
-    // Simulate face detection - in production, use face-api.js
     const faceCheck = setInterval(() => {
-      // For demo: assume face always detected when camera is on
       setFaceDetected(cameraActive)
-      
-      if (!cameraActive && !faceDetected) {
-        setViolations(prev => ({ ...prev, faceLost: prev.faceLost + 1 }))
-        
-        // Auto-submit after 30 seconds of no face
-        if (violations.faceLost >= 30) {
-          alert('Quiz auto-submitted: No face detected for extended period')
-          handleSubmitQuiz()
-        }
-      }
     }, 1000)
     
     return () => clearInterval(faceCheck)
-  }, [monitoringStarted, showResults, quizCompleted, cameraActive, faceDetected])
+  }, [monitoringStarted, showResults, quizCompleted, cameraActive])
 
   // ─────────────────────────────────────────────────────────────────────────
   // HELPER FUNCTIONS
@@ -226,13 +210,11 @@ export default function QuizPage({ params }: QuizPageProps) {
 
   const startMonitoring = async () => {
     try {
-      // Request camera permission
       const stream = await navigator.mediaDevices.getUserMedia({ video: true })
-      stream.getTracks().forEach(track => track.stop()) // Stop after getting permission
+      stream.getTracks().forEach(track => track.stop())
       
       setCameraActive(true)
       setMonitoringStarted(true)
-      setTimerActive(true)
       
       return true
     } catch (error) {
@@ -242,7 +224,6 @@ export default function QuizPage({ params }: QuizPageProps) {
     }
   }
 
-  // Auto-save answer to state (in production, save to Firebase)
   const handleAnswerSelect = (answerIndex: number) => {
     setSelectedAnswers(prev => ({
       ...prev,
@@ -268,7 +249,6 @@ export default function QuizPage({ params }: QuizPageProps) {
   }
 
   const handleSubmitQuiz = async () => {
-    // Validate monitoring before submission
     if (!cameraActive) {
       alert('Camera must be active to submit quiz')
       return
@@ -280,9 +260,7 @@ export default function QuizPage({ params }: QuizPageProps) {
     }
     
     setSubmitting(true)
-    setTimerActive(false)
     
-    // Calculate score
     const questions = course?.modules?.[0]?.quiz?.mcqQuestions || []
     let correctAnswers = 0
     
@@ -298,7 +276,6 @@ export default function QuizPage({ params }: QuizPageProps) {
     setQuizCompleted(true)
     setCameraActive(false)
     
-    // Save to Firebase
     await saveQuizResults(finalScore, correctAnswers, questions.length)
     
     setSubmitting(false)
@@ -320,8 +297,6 @@ export default function QuizPage({ params }: QuizPageProps) {
         violations: violations,
         passed: finalScore >= 60
       })
-      
-      console.log('✅ Quiz results saved with anti-cheating validation')
     } catch (error) {
       console.error('Error saving quiz results:', error)
     }
@@ -347,16 +322,16 @@ export default function QuizPage({ params }: QuizPageProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  // Get monitoring status for display
   const getMonitoringStatus = () => {
-    if (!monitoringStarted) return { color: 'red', text: 'Not Started' }
-    if (!cameraActive) return { color: 'red', text: 'Camera Off' }
-    if (!faceDetected) return { color: 'yellow', text: 'Face Not Detected' }
-    if (!tabActive) return { color: 'yellow', text: 'Tab Not Focused' }
-    return { color: 'green', text: 'All Good' }
+    if (!monitoringStarted) return { color: 'text-gray-500', bg: 'bg-gray-800', text: 'Not Started', icon: Lock }
+    if (!cameraActive) return { color: 'text-red-400', bg: 'bg-red-900/30', text: 'Camera Off', icon: Camera }
+    if (!faceDetected) return { color: 'text-yellow-400', bg: 'bg-yellow-900/30', text: 'No Face', icon: Eye }
+    if (!tabActive) return { color: 'text-red-400', bg: 'bg-red-900/30', text: 'Tab Hidden', icon: AlertTriangle }
+    return { color: 'text-green-400', bg: 'bg-green-900/30', text: 'All Good', icon: Shield }
   }
 
   const monitoringStatus = getMonitoringStatus()
+  const StatusIcon = monitoringStatus.icon
 
   // ─────────────────────────────────────────────────────────────────────────
   // LOADING STATE
@@ -364,10 +339,10 @@ export default function QuizPage({ params }: QuizPageProps) {
   
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0b0f14] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading quiz...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading quiz...</p>
         </div>
       </div>
     )
@@ -379,11 +354,11 @@ export default function QuizPage({ params }: QuizPageProps) {
   
   if (!course) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0b0f14] flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-400 mx-auto mb-4" />
-          <p className="text-gray-600">Course not found</p>
-          <Button onClick={() => router.push("/courses")} className="mt-4">
+          <p className="text-gray-400">Course not found</p>
+          <Button onClick={() => router.push("/courses")} className="mt-4 bg-blue-600">
             Back to Courses
           </Button>
         </div>
@@ -397,11 +372,11 @@ export default function QuizPage({ params }: QuizPageProps) {
   
   if (!course.modules?.[0]?.quiz?.mcqQuestions) {
     return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0b0f14] flex items-center justify-center">
         <div className="text-center">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Quiz Not Available</h2>
-          <p className="text-gray-600">This course does not have a quiz yet.</p>
-          <Button onClick={() => router.push(`/courses/${courseId}`)} className="mt-4">
+          <h2 className="text-xl font-semibold text-white mb-2">Quiz Not Available</h2>
+          <p className="text-gray-400">This course does not have a quiz yet.</p>
+          <Button onClick={() => router.push(`/courses/${courseId}`)} className="mt-4 bg-blue-600">
             Back to Course
           </Button>
         </div>
@@ -410,7 +385,7 @@ export default function QuizPage({ params }: QuizPageProps) {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // ALREADY COMPLETED - SHOW RESULTS
+  // RESULTS VIEW
   // ─────────────────────────────────────────────────────────────────────────
   
   if (showResults && quizCompleted) {
@@ -418,49 +393,49 @@ export default function QuizPage({ params }: QuizPageProps) {
     const passed = score >= 60
     
     return (
-      <div className="min-h-screen bg-gray-100">
-        <header className="bg-white shadow-sm border-b border-gray-200">
+      <div className="min-h-screen bg-[#0b0f14]">
+        <header className="bg-[#0f172a] border-b border-gray-800">
           <div className="max-w-4xl mx-auto px-6 py-4">
             <div className="flex items-center justify-between">
-              <Button variant="outline" onClick={() => router.push(`/courses/${courseId}`)}>
+              <Button variant="outline" onClick={() => router.push(`/courses/${courseId}`)} className="border-gray-700 text-gray-300 hover:bg-gray-800">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Course
               </Button>
-              <h1 className="text-xl font-bold text-gray-900">{course.title} - Results</h1>
+              <h1 className="text-xl font-semibold text-white">{course.title} - Results</h1>
             </div>
           </div>
         </header>
 
         <main className="max-w-4xl mx-auto px-6 py-8">
-          <Card className="bg-white border-gray-200">
+          <Card className="bg-[#111827] border-gray-800">
             <CardContent className="p-8 text-center">
               <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${
-                passed ? 'bg-green-100' : 'bg-red-100'
+                passed ? 'bg-green-900/30' : 'bg-red-900/30'
               }`}>
                 {passed ? (
-                  <Award className="h-10 w-10 text-green-600" />
+                  <Award className="h-10 w-10 text-green-400" />
                 ) : (
-                  <AlertCircle className="h-10 w-10 text-red-600" />
+                  <AlertCircle className="h-10 w-10 text-red-400" />
                 )}
               </div>
               
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              <h2 className="text-3xl font-bold text-white mb-2">
                 {passed ? 'Congratulations!' : 'Keep Learning!'}
               </h2>
               
               <div className="mb-6">
-                <div className="text-5xl font-bold text-gray-900 mb-2">{score}%</div>
-                <p className="text-gray-600">
+                <div className="text-5xl font-bold text-white mb-2">{score}%</div>
+                <p className="text-gray-400">
                   You got {Math.round((score / 100) * questions.length)} out of {questions.length} questions correct
                 </p>
               </div>
 
               <div className="flex gap-4 justify-center">
-                <Button onClick={retakeQuiz} variant="outline">
+                <Button onClick={retakeQuiz} variant="outline" className="border-gray-700 text-gray-300 hover:bg-gray-800">
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Retake Quiz
                 </Button>
-                <Button onClick={() => router.push("/dashboard")}>
+                <Button onClick={() => router.push("/dashboard")} className="bg-blue-600 hover:bg-blue-700">
                   <Monitor className="h-4 w-4 mr-2" />
                   Go to Dashboard
                 </Button>
@@ -473,61 +448,76 @@ export default function QuizPage({ params }: QuizPageProps) {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // QUIZ IN PROGRESS - MAIN UI
+  // QUIZ IN PROGRESS
   // ─────────────────────────────────────────────────────────────────────────
   
   const questions = course.modules[0].quiz.mcqQuestions
   const currentQuestionData = questions[currentQuestion]
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* ═══════════════════════════════════════════════════════════════════════
-        HEADER - Shows timer, monitoring status, navigation
-      ═══════════════════════════════════════════════════════════════════════ */}
-      <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+    <div className="min-h-screen bg-[#0b0f14]" style={{ userSelect: 'none' }}>
+      {/* ═══════════════════════════════════════════════════════════════════
+        VIOLATION ALERT (Floating)
+      ═══════════════════════════════════════════════════════════════════ */}
+      {showViolationAlert && (
+        <div className="fixed top-4 right-4 z-50 bg-red-900/90 text-white px-6 py-3 rounded-lg animate-pulse border border-red-500">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            <span className="font-medium">Tab Switch Detected! ({violations.tabSwitch}/3)</span>
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+        HEADER - Dark glass bar
+      ═══════════════════════════════════════════════════════════════════ */}
+      <header className="sticky top-0 z-40 bg-[#0f172a]/90 backdrop-blur-xl border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Left: Back button + Course name */}
+            {/* Left: Back + Course */}
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" onClick={() => router.push(`/courses/${courseId}`)}>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => router.push(`/courses/${courseId}`)}
+                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+              >
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Exit
               </Button>
               <div>
-                <h1 className="text-lg font-bold text-gray-900">{course.title} Quiz</h1>
+                <h1 className="text-lg font-semibold text-white">{course.title}</h1>
                 <p className="text-sm text-gray-500">Question {currentQuestion + 1} of {questions.length}</p>
               </div>
             </div>
 
             {/* Center: Timer */}
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-              timeLeft < 60 ? 'bg-red-100 text-red-700' : 
-              timeLeft < 180 ? 'bg-yellow-100 text-yellow-700' : 
-              'bg-blue-100 text-blue-700'
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-xl border ${
+              timeLeft < 60 
+                ? 'bg-red-950 border-red-500 text-red-400 animate-pulse' 
+                : timeLeft < 180 
+                ? 'bg-yellow-950 border-yellow-500 text-yellow-400'
+                : 'bg-[#020617] border-gray-700 text-blue-400'
             }`}>
               <Timer className="h-5 w-5" />
               <span className="text-2xl font-bold font-mono">{formatTime(timeLeft)}</span>
             </div>
 
-            {/* Right: Monitoring Status + Submit */}
+            {/* Right: Status + Submit */}
             <div className="flex items-center gap-3">
-              {/* Monitoring Status Badge */}
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full ${
-                monitoringStatus.color === 'green' ? 'bg-green-100 text-green-700' :
-                monitoringStatus.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-red-100 text-red-700'
-              }`}>
-                <Shield className="h-4 w-4" />
-                <span className="text-sm font-medium">{monitoringStatus.text}</span>
+              {/* Monitoring Status */}
+              <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${monitoringStatus.bg}`}>
+                <StatusIcon className={`h-4 w-4 ${monitoringStatus.color}`} />
+                <span className={`text-sm font-medium ${monitoringStatus.color}`}>{monitoringStatus.text}</span>
               </div>
 
-              {/* Submit Button */}
+              {/* Submit */}
               <Button 
                 onClick={handleSubmitQuiz}
                 disabled={submitting}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-red-600 hover:bg-red-700 text-white"
               >
-                {submitting ? 'Submitting...' : 'Submit Quiz'}
+                {submitting ? 'Submitting...' : 'Submit'}
               </Button>
             </div>
           </div>
@@ -538,9 +528,9 @@ export default function QuizPage({ params }: QuizPageProps) {
               <span>Progress</span>
               <span>{Math.round(((currentQuestion + 1) / questions.length) * 100)}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-gray-800 rounded-full h-1.5">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
                 style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
               />
             </div>
@@ -548,33 +538,55 @@ export default function QuizPage({ params }: QuizPageProps) {
         </div>
       </header>
 
-      {/* ═══════════════════════════════════════════════════════════════════════
-        MAIN CONTENT - Split into sidebar and question area
-      ═══════════════════════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════════════
+        MAIN CONTENT
+      ═══════════════════════════════════════════════════════════════════ */}
       <main className="max-w-7xl mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           
-          {/* LEFT SIDEBAR - Question Navigator */}
+          {/* LEFT SIDEBAR */}
           <div className="lg:col-span-1">
-            <Card className="bg-white border-gray-200 sticky top-24">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Questions</CardTitle>
+            <Card className="bg-[#0f172a] border-gray-800 sticky top-28">
+              <CardHeader className="pb-3 border-b border-gray-800">
+                <CardTitle className="text-white text-lg">Questions</CardTitle>
               </CardHeader>
-              <CardContent>
-                {/* Start Monitoring Button */}
+              <CardContent className="pt-4">
+                {/* Start Monitoring */}
                 {!monitoringStarted && (
-                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800 mb-2">
-                      ⚠️ Camera monitoring required to start quiz
+                  <div className="mb-4 p-3 bg-yellow-900/20 border border-yellow-700/50 rounded-lg">
+                    <p className="text-sm text-yellow-400 mb-2">
+                      Camera monitoring required
                     </p>
                     <Button 
                       onClick={startMonitoring}
-                      className="w-full bg-yellow-600 hover:bg-yellow-700"
+                      className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
                       size="sm"
                     >
                       <Camera className="h-4 w-4 mr-2" />
                       Start Monitoring
                     </Button>
+                  </div>
+                )}
+
+                {/* Monitoring Stats */}
+                {monitoringStarted && (
+                  <div className="grid grid-cols-2 gap-2 mb-4">
+                    <div className={`p-2 rounded-lg ${cameraActive ? 'bg-green-900/20 border border-green-800' : 'bg-red-900/20 border border-red-800'}`}>
+                      <Camera className={`h-4 w-4 ${cameraActive ? 'text-green-400' : 'text-red-400'} mb-1`} />
+                      <p className={`text-xs ${cameraActive ? 'text-green-400' : 'text-red-400'}`}>Camera</p>
+                    </div>
+                    <div className={`p-2 rounded-lg ${faceDetected ? 'bg-green-900/20 border border-green-800' : 'bg-red-900/20 border border-red-800'}`}>
+                      <Eye className={`h-4 w-4 ${faceDetected ? 'text-green-400' : 'text-red-400'} mb-1`} />
+                      <p className={`text-xs ${faceDetected ? 'text-green-400' : 'text-red-400'}`}>Face</p>
+                    </div>
+                    <div className={`p-2 rounded-lg ${tabActive ? 'bg-green-900/20 border border-green-800' : 'bg-red-900/20 border border-red-800'}`}>
+                      <Monitor className={`h-4 w-4 ${tabActive ? 'text-green-400' : 'text-red-400'} mb-1`} />
+                      <p className={`text-xs ${tabActive ? 'text-green-400' : 'text-red-400'}`}>Tab</p>
+                    </div>
+                    <div className={`p-2 rounded-lg ${violations.tabSwitch === 0 ? 'bg-green-900/20 border border-green-800' : 'bg-red-900/20 border border-red-800'}`}>
+                      <AlertTriangle className={`h-4 w-4 ${violations.tabSwitch === 0 ? 'text-green-400' : 'text-red-400'} mb-1`} />
+                      <p className={`text-xs ${violations.tabSwitch === 0 ? 'text-green-400' : 'text-red-400'}`}>Violations</p>
+                    </div>
                   </div>
                 )}
 
@@ -586,10 +598,10 @@ export default function QuizPage({ params }: QuizPageProps) {
                       onClick={() => setCurrentQuestion(index)}
                       className={`w-10 h-10 rounded-lg text-sm font-medium transition-all ${
                         currentQuestion === index
-                          ? 'bg-blue-600 text-white'
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
                           : selectedAnswers[index] !== undefined
-                          ? 'bg-green-100 text-green-700 border border-green-300'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          ? 'bg-green-900/30 text-green-400 border border-green-800'
+                          : 'bg-[#0b0f14] text-gray-500 border border-gray-800 hover:border-gray-700'
                       }`}
                     >
                       {index + 1}
@@ -598,14 +610,14 @@ export default function QuizPage({ params }: QuizPageProps) {
                 </div>
 
                 {/* Stats */}
-                <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="mt-4 pt-4 border-t border-gray-800">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-500">Answered:</span>
-                    <span className="font-medium">{Object.keys(selectedAnswers).length}/{questions.length}</span>
+                    <span className="text-white font-medium">{Object.keys(selectedAnswers).length}/{questions.length}</span>
                   </div>
                   <div className="flex justify-between text-sm mt-1">
                     <span className="text-gray-500">Violations:</span>
-                    <span className={`font-medium ${violations.tabSwitch > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <span className={`font-medium ${violations.tabSwitch > 0 ? 'text-red-400' : 'text-green-400'}`}>
                       {violations.tabSwitch}
                     </span>
                   </div>
@@ -614,52 +626,55 @@ export default function QuizPage({ params }: QuizPageProps) {
             </Card>
           </div>
 
-          {/* RIGHT - Question Area */}
+          {/* QUESTION AREA */}
           <div className="lg:col-span-3">
-            <Card className="bg-white border-gray-200">
-              <CardContent className="p-6">
-                {/* Question Number & Text */}
+            <Card className="bg-[#111827] border-gray-800 rounded-2xl">
+              <CardContent className="p-8">
+                {/* Question */}
                 <div className="mb-6">
-                  <Badge variant="outline" className="mb-2">Question {currentQuestion + 1}</Badge>
-                  <h2 className="text-xl font-semibold text-gray-900">
+                  <Badge variant="outline" className="mb-2 border-gray-700 text-gray-400">
+                    Question {currentQuestion + 1}
+                  </Badge>
+                  <h2 className="text-xl font-medium text-white">
                     {currentQuestionData?.question}
                   </h2>
                 </div>
 
-                {/* Answer Options */}
+                {/* Options */}
                 <div className="space-y-3 mb-8">
                   {currentQuestionData?.options?.map((option: string, index: number) => (
                     <button
                       key={index}
                       onClick={() => handleAnswerSelect(index)}
-                      className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
+                      className={`w-full p-4 text-left rounded-xl border-2 transition-all ${
                         selectedAnswers[currentQuestion] === index
-                          ? 'border-blue-500 bg-blue-50'
-                          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                          ? 'border-blue-500 bg-blue-500/10'
+                          : 'border-gray-800 bg-[#0f172a] hover:border-gray-700 hover:bg-[#0f172a]/80'
                       }`}
                     >
                       <div className="flex items-center gap-3">
                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
                           selectedAnswers[currentQuestion] === index
                             ? 'border-blue-500 bg-blue-500'
-                            : 'border-gray-300'
+                            : 'border-gray-600'
                         }`}>
                           {selectedAnswers[currentQuestion] === index && (
-                            <div className="w-2 h-2 rounded-full bg-white" />
+                            <Check className="h-3 w-3 text-white" />
                           )}
                         </div>
-                        <span className="text-gray-700">{option}</span>
+                        <span className="text-gray-200">{option}</span>
                       </div>
                     </button>
                   ))}
                 </div>
 
-                {/* Navigation Buttons */}
-                <div className="flex justify-between">
+                {/* Navigation */}
+                <div className="flex justify-between pt-4 border-t border-gray-800">
                   <Button
                     variant="outline"
                     onClick={handlePreviousQuestion}
                     disabled={currentQuestion === 0}
+                    className="border-gray-700 text-gray-300 hover:bg-gray-800"
                   >
                     <ArrowLeft className="h-4 w-4 mr-2" />
                     Previous
@@ -668,7 +683,7 @@ export default function QuizPage({ params }: QuizPageProps) {
                   <Button
                     onClick={handleNextQuestion}
                     disabled={selectedAnswers[currentQuestion] === undefined}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     {currentQuestion === questions.length - 1 ? (
                       <>
