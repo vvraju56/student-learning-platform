@@ -1,0 +1,215 @@
+1️⃣ Saving video progress
+2️⃣ Showing progress in Dashboard (real-time)
+3️⃣ Unlocking Quiz (20 MCQ + 2 Coding) ONLY after all videos are completed
+
+This is written exactly for your current system (AI monitoring + Firebase Free plan + dashboard UI).
+
+🎥 VIDEO PROGRESS → DASHBOARD → QUIZ UNLOCK
+(FULL LOGIC + DATA + UI FLOW)
+🎯 OVERALL RULES (CLEAR & STRICT)
+✅ Video progress is counted ONLY if:
+
+Camera is ON
+
+AI Monitoring is ACTIVE
+
+Face is detected
+
+Tab is active
+
+Video not excessively skipped
+
+❌ If any rule fails:
+
+Video pauses
+
+Timer pauses
+
+Progress not counted
+
+Nothing saved
+
+🧱 STEP 1: VIDEO PROGRESS TRACKING (LOCAL FIRST)
+While video is playing:
+
+Track valid watch time locally
+
+Update every second only in memory
+
+validWatchTime += 1; // only if monitoringActive && focused
+
+
+❌ Do NOT write every second to Firebase (free plan rule)
+
+⏱️ SAVE PROGRESS (SAFE WAY)
+Save progress ONLY when:
+
+Video paused
+
+Every 30–60 seconds
+
+Video completed
+
+User leaves page
+
+saveVideoProgress({
+  courseId,
+  videoId,
+  watchedSeconds,
+  completed: false
+});
+
+🧠 STEP 2: VIDEO COMPLETION LOGIC
+
+A video is marked COMPLETED if:
+
+(validWatchTime / totalDuration) >= 90%
+AND tabSwitch <= 10
+AND faceMissing <= 10
+AND autoPause <= 10
+
+When completed:
+markVideoCompleted(videoId);
+
+💾 STEP 3: FIREBASE DATA STRUCTURE (OPTIMIZED)
+🔹 Per User → Courses → Videos
+users: {
+  uid: {
+    courses: {
+      web: {
+        totalVideos: 10,
+        completedVideos: 3,
+        progress: 30,
+        quizUnlocked: false
+      }
+    },
+    videos: {
+      web_video_1: {
+        completed: true,
+        watchTime: 320,
+        violations: {
+          tabSwitch: 2,
+          faceMissing: 1
+        }
+      }
+    }
+  }
+}
+
+
+✔ Small
+✔ Free-plan safe
+✔ Easy dashboard read
+
+📊 STEP 4: COURSE PROGRESS CALCULATION
+Formula:
+courseProgress =
+(completedVideos / totalVideos) × 100
+
+Example:
+
+Completed videos: 5
+
+Total videos: 10
+
+➡️ Progress = 50%
+
+Saved to:
+
+courses.web.progress = 50
+
+📈 STEP 5: DASHBOARD DISPLAY (REAL-TIME)
+Dashboard shows:
+
+Course name
+
+Progress bar
+
+Percentage text
+
+Status: In Progress / Completed
+
+Firebase listener:
+onValue(ref(db, `users/${uid}/courses`), snapshot => {
+  setCourses(snapshot.val());
+});
+
+
+✔ Live updates
+✔ No refresh
+✔ Minimal reads
+
+🧮 STEP 6: OVERALL PROGRESS (ALL COURSES)
+Formula:
+overallProgress =
+average of all course progress
+
+
+Example:
+
+Web: 100%
+
+App: 50%
+
+Game: 0%
+
+➡️ Overall = 50%
+
+Shown in dashboard live.
+
+🧩 STEP 7: QUIZ UNLOCK LOGIC (IMPORTANT)
+Rule:
+
+Quiz unlocks ONLY if ALL videos of a course are completed
+
+Condition:
+if (completedVideos === totalVideos) {
+  unlockQuiz(courseId);
+}
+
+🔓 STEP 8: UNLOCK 20 MCQ + 2 CODING QUESTIONS
+Firebase update:
+courses: {
+  web: {
+    quizUnlocked: true
+  }
+}
+
+Dashboard / Quiz UI Behavior:
+State	UI
+Videos incomplete	🔒 Quiz Locked
+All videos completed	✅ Quiz Available
+Quiz unlocked	Start Quiz button enabled
+📝 QUIZ STRUCTURE (PER COURSE)
+
+Each unlocked quiz contains:
+
+20 MCQ
+
+2 Coding Questions
+
+Example:
+quiz: {
+  mcq: 20,
+  coding: 2
+}
+
+🔐 STEP 9: PREVENT CHEATING (CRITICAL)
+
+✔ Quiz button disabled until unlocked
+✔ Firebase rules prevent manual unlock
+✔ UI + backend enforce same logic
+
+🎓 VIVA-READY EXPLANATION (SHORT)
+
+“Video progress is tracked using AI monitoring and saved to Firebase only at safe intervals. Course progress updates in real time on the dashboard. Once all videos in a course are validly completed, the system automatically unlocks a quiz containing 20 MCQs and 2 coding questions.”
+
+✅ FINAL CHECKLIST (YOU SHOULD HAVE)
+
+✔ Valid watch-time tracking
+✔ Firebase-safe writes
+✔ Course progress calculation
+✔ Dashboard real-time update
+✔ Overall progress calculation
+✔ Quiz locked by default
+✔ Quiz unlock after full completion

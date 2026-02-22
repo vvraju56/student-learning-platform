@@ -1,0 +1,1231 @@
+MULTI-COURSE VIDEO LEARNING SYSTEM (FULL EXPLANATION)
+🔹 Overview
+
+The system provides structured beginner-level courses in:
+
+Web Development
+
+App Development
+
+Game Development
+
+Each course contains 10 beginner videos, arranged in a progressive learning order.
+Students must complete videos sequentially, while their posture and attention are monitored in real time using AI and IoT.
+
+🧠 How the Video System Works
+
+A student selects a course from the dashboard
+
+The first video is unlocked
+
+While watching:
+
+Webcam monitors attention
+
+Sensors monitor posture
+
+If posture or attention is poor:
+
+Alerts are shown
+
+Data is logged
+
+After completing a video:
+
+Next video unlocks
+
+After all 10 videos:
+
+Quiz is unlocked
+
+Course progress is updated
+
+This ensures disciplined, healthy, and focused learning.
+
+🌐 WEB DEVELOPMENT – BEGINNER (10 VIDEOS)
+🎯 Goal:
+
+Teach the basics of how websites work using HTML, CSS, and JavaScript.
+
+No	Topic	Video Link
+1	Introduction to Web Development	https://www.youtube.com/watch?v=Q33KBiDriJY
+
+2	HTML Basics	https://www.youtube.com/watch?v=pQN-pnXPaVg
+
+3	HTML Forms & Inputs	https://www.youtube.com/watch?v=fNcJuPIZ2WE
+
+4	CSS Basics	https://www.youtube.com/watch?v=yfoY53QXEnI
+
+5	CSS Box Model	https://www.youtube.com/watch?v=rIO5326FgPE
+
+6	Flexbox Basics	https://www.youtube.com/watch?v=JJSoEo8JSnc
+
+7	JavaScript Introduction	https://www.youtube.com/watch?v=W6NZfCO5SIk
+
+8	JavaScript Variables & Functions	https://www.youtube.com/watch?v=Bv_5Zv5c-Ts
+
+9	DOM Manipulation	https://www.youtube.com/watch?v=0ik6X4DJKCc
+
+10	Mini Website Project	https://www.youtube.com/watch?v=PlxWf493en4
+
+✅ After completing all videos → Web Development Quiz Unlocks
+
+📱 APP DEVELOPMENT – BEGINNER (10 VIDEOS)
+🎯 Goal:
+
+Teach basics of Android app development using Android Studio and Kotlin.
+
+No	Topic	Video Link
+1	What is App Development	https://www.youtube.com/watch?v=EOfCEhWq8sg
+
+2	Android Studio Installation	https://www.youtube.com/watch?v=0zx_eFyHRU0
+
+3	Kotlin Basics	https://www.youtube.com/watch?v=F9UC9DY-vIU
+
+4	Android App UI Layouts	https://www.youtube.com/watch?v=bgIUdb-7Rqo
+
+5	Buttons & Input Fields	https://www.youtube.com/watch?v=bbMsuI2p1DQ
+
+6	Navigation Basics	https://www.youtube.com/watch?v=NYF5V7qZ1zQ
+
+7	Activities & Intents	https://www.youtube.com/watch?v=Yz-8wz6PZxA
+
+8	Simple Calculator App	https://www.youtube.com/watch?v=Jy4wM2X21u0
+
+9	Data Storage Basics	https://www.youtube.com/watch?v=7QwY3WnqJxI
+
+10	Beginner Android Project	https://www.youtube.com/watch?v=fis26HvvDII
+
+✅ After completing all videos → App Development Quiz Unlocks
+
+🎮 GAME DEVELOPMENT – BEGINNER (10 VIDEOS)
+🎯 Goal:
+
+Introduce game development concepts using Unity and C#.
+
+No	Topic	Video Link
+1	Introduction to Game Development	https://www.youtube.com/watch?v=GFO_txvwK_c
+
+2	Game Engines Overview	https://www.youtube.com/watch?v=2r9M2hCj5iw
+
+3	Unity Installation	https://www.youtube.com/watch?v=IlKaB1etrik
+
+4	C# Basics for Unity	https://www.youtube.com/watch?v=GhQdlIFylQ8
+
+5	Game Objects & Scenes	https://www.youtube.com/watch?v=YdO-DzF_1R0
+
+6	Player Movement	https://www.youtube.com/watch?v=dwcT-Dch0bA
+
+7	Collision Detection	https://www.youtube.com/watch?v=QbqnDbexrCw
+
+8	Game UI & Scoring	https://www.youtube.com/watch?v=TAGZxRMloyU
+
+9	2D Game Logic	https://www.youtube.com/watch?v=on9nwbZngyw
+
+10	Beginner 2D Game Project	https://www.youtube.com/watch?v=OR0e-1UBEOU
+
+✅ After completing all videos → Game Development Quiz Unlocks
+
+🧩 How These Videos Are Used in Your UI
+🎥 Lecture Page
+
+Left side: Embedded YouTube video player
+
+Right side:
+
+Video list (1–10)
+
+Status:
+
+✅ Completed (green)
+
+▶ Current (blue)
+
+🔒 Locked (gray)
+
+📊 Progress Tracking
+
+Watch time recorded
+
+Completion percentage calculated
+
+Stored for reports
+
+Used to unlock quizzes
+
+🤖 AI & IoT Integration
+
+While videos play:
+
+Webcam checks face detection
+
+ESP32 sensors monitor distance/posture
+
+Alerts are shown instantly
+
+Data is logged for reports
+
+🎯 Final Summary (For Viva)
+
+“Each course contains 10 structured beginner videos.
+The system enforces sequential learning, monitors posture and attention using AI and IoT, provides real-time alerts, and unlocks quizzes only after full content completion. This ensures healthy, focused, and effective digital learning.”
+
+while playing video if any tab switch or out of website it need to autopaush and decular as bending and monitoring posture attention face detection need to be realtime 
+
+REAL-TIME VIDEO MONITORING WITH AUTO-PAUSE & ATTENTION CONTROL
+🎯 Requirement Summary
+
+While a student is watching a course video:
+
+✅ If the user switches tab / minimizes browser / leaves website
+→ Video auto-pauses
+→ Attention marked as Distracted
+
+✅ If the student bends too close
+→ Posture marked as Bad (Leaning)
+
+✅ If face is not detected
+→ Video auto-pauses
+
+✅ All monitoring is REAL-TIME
+
+✅ Alerts are logged and displayed
+
+🧠 SYSTEM BEHAVIOR OVERVIEW
+Video Playing
+     |
+     ├── Tab Switch / Website Blur → AUTO PAUSE + ALERT
+     ├── Face Not Detected → AUTO PAUSE + ALERT
+     ├── Leaning Forward → ALERT (Posture Warning)
+     └── Focused & Good Posture → Continue Playing
+
+🔍 1️⃣ TAB SWITCH / OUT OF WEBSITE → AUTO PAUSE
+🔹 What happens?
+
+User switches to another tab
+
+Minimizes browser
+
+Changes application
+
+Clicks outside website
+
+🔹 Action:
+
+Video pauses immediately
+
+Attention marked as Distracted
+
+Alert stored
+
+🔧 Implementation (JavaScript)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    pauseVideo();
+    markAttention("Distracted");
+    logAlert("Tab switched or website left");
+  }
+});
+
+
+Also handle window blur:
+
+window.addEventListener("blur", () => {
+  pauseVideo();
+  markAttention("Distracted");
+  logAlert("Window lost focus");
+});
+
+
+✅ This works in all modern browsers
+
+👀 2️⃣ FACE DETECTION (Webcam) → AUTO PAUSE
+🔹 What happens?
+
+Webcam tracks user’s face
+
+If face not detected for X seconds (e.g., 5 sec)
+
+🔹 Action:
+
+Video pauses
+
+Attention marked as Not Focused
+
+Alert displayed
+
+🔧 Implementation (AI – Face Detection)
+
+Using:
+
+MediaPipe
+
+Face-API.js
+
+TensorFlow.js
+
+🔧 Logic:
+if (!faceDetected) {
+  faceMissingTime += 1;
+} else {
+  faceMissingTime = 0;
+}
+
+if (faceMissingTime > 5) {
+  pauseVideo();
+  markAttention("Distracted");
+  logAlert("Face not detected");
+}
+
+🧍 3️⃣ POSTURE DETECTION (Leaning Forward)
+🔹 Source:
+
+ESP32 + ultrasonic / IR sensor
+
+Or webcam depth / landmark estimation
+
+🔹 Logic:
+
+Measure distance from screen
+
+Threshold example:
+
+50 cm → Good posture
+
+< 35 cm → Leaning forward
+
+🔧 ESP32 → Web App
+
+ESP32 sends posture data every second:
+
+{
+  "distance": 28
+}
+
+🔧 Frontend Logic:
+if (distance < 35) {
+  markPosture("Leaning Forward");
+  showWarning("Please sit straight");
+  logAlert("Leaning too close to screen");
+}
+
+
+⚠️ Video may continue but alert is shown
+(or pause if rule is strict)
+
+🎯 4️⃣ REAL-TIME ATTENTION STATUS
+Attention is marked Focused only if:
+
+✔ Tab is active
+✔ Face is detected
+✔ User is not idle
+✔ Video is playing
+
+Otherwise:
+
+❌ Distracted
+
+🔧 Combined Logic:
+if (
+  !document.hidden &&
+  faceDetected &&
+  posture === "Good"
+) {
+  attention = "Focused";
+} else {
+  attention = "Distracted";
+}
+
+⏸️ 5️⃣ VIDEO AUTO-PAUSE CONTROL
+Central Control Function:
+function pauseVideo() {
+  const iframe = document.getElementById("videoPlayer");
+  iframe.contentWindow.postMessage(
+    '{"event":"command","func":"pauseVideo","args":""}',
+    "*"
+  );
+}
+
+
+(Works with YouTube embedded player)
+
+🚨 6️⃣ ALERT SYSTEM (REAL-TIME)
+
+Each violation triggers:
+
+On-screen warning
+
+Status color change
+
+Alert saved
+
+Alert Types:
+
+❌ Tab switched
+
+❌ Face not detected
+
+⚠️ Leaning forward
+
+⚠️ Inactive user
+
+📊 7️⃣ DATA LOGGING (For Reports)
+
+Each alert stores:
+
+Type
+
+Timestamp
+
+Video ID
+
+Course ID
+
+Duration
+
+Example:
+
+{
+  "type": "Attention",
+  "message": "Tab switched",
+  "time": "10:42 AM",
+  "video": "HTML Basics"
+}
+
+
+Used for:
+
+Reports page
+
+Progress score
+
+Behavior analysis
+
+🎯 FINAL SYSTEM FLOW (SIMPLE)
+User plays video
+      |
+      ├─ Tab switch → Pause + Alert
+      ├─ Face missing → Pause + Alert
+      ├─ Leaning → Warning + Log
+      └─ Good behavior → Continue learning
+
+🧑‍🎓 VIVA-READY EXPLANATION (SHORT)
+
+“The system continuously monitors user posture and attention in real time. If the user switches tabs, leaves the website, or the face is not detected by the webcam, the video automatically pauses and attention is marked as distracted. Posture is monitored using IoT sensors, and alerts are generated if the student leans too close. This ensures focused, healthy, and disciplined learning.”
+
+and us timeing for each video to compelete and auto start  next video ❌ Video is NOT counted if:
+
+User switches tab more then 10 time 
+
+Face not detected more then 10 time
+
+Video is auto-paused more then 10 time
+
+User skips too much 
+
+
+VIDEO COMPLETION, TIMING & AUTO-NEXT SYSTEM
+(With Strict Attention & Behavior Rules)
+🎯 Objective
+
+Ensure that a video is counted as completed only if the student watches it attentively and correctly, without distractions, skipping, or misuse.
+
+⏱️ 1️⃣ VIDEO TIMING & COMPLETION LOGIC
+✔ A video is considered completed only if:
+
+User watches ≥ 90% of total video duration
+
+Video reaches natural end
+
+All attention & posture rules are satisfied
+
+❌ A video is NOT counted if:
+
+Rules are violated more than allowed limits (explained below)
+
+⏭️ 2️⃣ AUTO-START NEXT VIDEO (ON SUCCESS)
+✔ If video is valid & completed:
+
+Mark video as Completed
+
+Unlock next video
+
+Automatically start next video after 3 seconds
+
+🔧 Logic:
+Video ends
+→ Validate behavior
+→ If valid → start next video
+→ If invalid → block progress
+
+🚫 3️⃣ INVALID WATCH CONDITIONS (STRICT RULES)
+❌ Video is NOT counted if ANY of the following occur:
+🔴 Rule 1: Tab Switch Limit
+
+Allowed: ≤ 10 times
+
+If user switches tab more than 10 times
+→ Video becomes INVALID
+
+if (tabSwitchCount > 10) {
+  videoValid = false;
+}
+
+🔴 Rule 2: Face Not Detected Limit
+
+Allowed: ≤ 10 times
+
+If face not detected more than 10 times
+→ Video becomes INVALID
+
+if (faceMissingCount > 10) {
+  videoValid = false;
+}
+
+🔴 Rule 3: Auto-Pause Limit
+
+Allowed: ≤ 10 pauses
+
+Auto-pause includes:
+
+Tab switch
+
+Face missing
+
+Long inactivity
+
+If auto-pause happens more than 10 times
+→ Video becomes INVALID
+
+if (autoPauseCount > 10) {
+  videoValid = false;
+}
+
+🔴 Rule 4: Excessive Skipping
+
+Allowed skip: ≤ 10% of video duration
+
+If user skips more than allowed
+→ Video becomes INVALID
+
+if (skippedTime > videoDuration * 0.1) {
+  videoValid = false;
+}
+
+🧠 4️⃣ REAL-TIME BEHAVIOR TRACKING VARIABLES
+
+Each video tracks these values:
+
+Metric	Purpose
+watchTime	Actual focused watch time
+tabSwitchCount	Distraction count
+faceMissingCount	Attention loss
+autoPauseCount	Forced pauses
+skippedTime	Skip misuse
+videoValid	Final status
+🧍 5️⃣ POSTURE & ATTENTION EFFECT
+Posture:
+
+Leaning forward → Warning
+
+Repeated leaning → Alert logged
+
+Optional pause if extreme
+
+Attention:
+
+Distracted → Auto-pause
+
+Focused → Continue video
+
+🧪 6️⃣ FINAL VIDEO VALIDATION CHECK
+🔍 At video end:
+if (
+  watchTime >= videoDuration * 0.9 &&
+  tabSwitchCount <= 10 &&
+  faceMissingCount <= 10 &&
+  autoPauseCount <= 10 &&
+  skippedTime <= videoDuration * 0.1
+) {
+  videoValid = true;
+} else {
+  videoValid = false;
+}
+
+⏭️ 7️⃣ AUTO-START NEXT VIDEO LOGIC
+if (videoValid) {
+  markCompleted(videoId);
+  unlockNextVideo();
+  setTimeout(playNextVideo, 3000);
+} else {
+  showMessage("Video not counted. Please watch again attentively.");
+}
+
+📊 8️⃣ DATA SAVED FOR EACH VIDEO
+{
+  "videoId": "html_basics",
+  "watchTime": "46 min",
+  "tabSwitches": 6,
+  "faceMissed": 4,
+  "autoPauses": 3,
+  "skippedTime": "2 min",
+  "status": "Completed"
+}
+
+
+Used for:
+
+Reports
+
+Behavior scoring
+
+Progress analysis
+
+🎯 9️⃣ SYSTEM FLOW (SIMPLE)
+Video Starts
+   ↓
+Track time + attention + posture
+   ↓
+Auto-pause on violations
+   ↓
+Video Ends
+   ↓
+Validate rules
+   ↓
+✔ Valid → Auto-play next video
+❌ Invalid → Rewatch required
+
+🧑‍🎓 VIVA-READY SHORT ANSWER
+
+“Each video has strict completion rules. If the user switches tabs, loses face detection, auto-pauses, or skips excessively beyond defined limits, the video is marked invalid. Only valid videos count toward course completion, and the next video starts automatically, ensuring focused and disciplined learning.”
+
+if they stop and after they start need to contiune the process and if any focus lost tab switch the time need to pause ,save the completed process to contiune and show ovrall persetage in dashbord and the timer pause for focus lost not working,in dashborad show the Overall Progress realtime by the courses analysis process ,show with courses name in Overall Progress
+
+SMART VIDEO CONTINUITY, PAUSE–RESUME & REAL-TIME PROGRESS SYSTEM
+🎯 CORE REQUIREMENTS (WHAT THE SYSTEM MUST DO)
+
+If user stops video and returns later
+
+Resume from last valid watched time
+
+If focus is lost (tab switch, face missing)
+
+Video pauses
+
+Timer pauses
+
+Progress is saved
+
+No time counted during focus loss
+
+Dashboard shows REAL-TIME overall progress
+
+Overall progress shown course-wise
+
+Progress updates instantly while watching
+
+🧠 1️⃣ VIDEO PAUSE–RESUME CONTINUITY SYSTEM
+🔹 What happens when user stops watching?
+
+Video pauses
+
+Current watch time is saved
+
+User can leave the site
+
+When user returns → video resumes from same point
+
+🔹 Stored Data Per Video:
+{
+  "videoId": "html_basics",
+  "lastWatchedTime": 1280,
+  "validWatchTime": 1240,
+  "completed": false
+}
+
+🔧 Resume Logic:
+videoPlayer.currentTime = savedLastWatchedTime;
+videoPlayer.play();
+
+
+✅ User never loses progress
+
+⏸️ 2️⃣ TIMER PAUSE WHEN FOCUS IS LOST (IMPORTANT FIX)
+🔴 Problem You Mentioned
+
+“Timer pause for focus lost not working”
+
+✅ Correct Behavior:
+
+When focus is lost:
+
+Video pauses
+
+Timer must stop
+
+When focus returns:
+
+Video resumes
+
+Timer resumes
+
+🔧 Correct Timer Logic (KEY PART)
+let timerInterval = null;
+
+function startTimer() {
+  timerInterval = setInterval(() => {
+    validWatchTime++;
+  }, 1000);
+}
+
+function pauseTimer() {
+  clearInterval(timerInterval);
+}
+
+🔧 Focus Lost Handling:
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    pauseVideo();
+    pauseTimer();
+    saveProgress();
+  } else {
+    resumeVideo();
+    startTimer();
+  }
+});
+
+
+Now NO time is counted during distraction ✅
+
+👀 3️⃣ REAL-TIME FOCUS & ATTENTION CONTROL
+Focus is LOST when:
+
+Tab switch
+
+Window blur
+
+Face not detected
+
+Camera disabled
+
+Action:
+
+Video pauses
+
+Timer pauses
+
+Alert logged
+
+Progress saved
+
+Focus is GAINED when:
+
+Tab active
+
+Face detected
+
+Camera ON
+
+💾 4️⃣ SAVE PROGRESS CONTINUOUSLY (AUTO-SAVE)
+
+Progress is saved:
+
+Every 5 seconds
+
+On pause
+
+On tab switch
+
+On page exit
+
+On video end
+
+🔧 Auto-save logic:
+setInterval(() => {
+  saveProgress();
+}, 5000);
+
+📊 5️⃣ COURSE-WISE PROGRESS CALCULATION
+
+Each course has 10 videos.
+
+Progress formula per course:
+Course Progress (%) =
+(Completed Videos + Partial Progress) / Total Videos × 100
+
+Example:
+
+Completed: 4 videos
+
+5th video watched 50%
+
+(4.5 / 10) × 100 = 45%
+
+📈 6️⃣ REAL-TIME DASHBOARD OVERALL PROGRESS
+Dashboard shows:
+
+Overall Progress (All Courses)
+
+Individual Course Progress
+
+Example:
+Course Name	Progress
+Web Development	45%
+App Development	20%
+Game Development	10%
+🔧 Real-Time Update Logic:
+useEffect(() => {
+  fetchProgress();
+}, [watchTime, completedVideos]);
+
+
+Whenever user watches:
+
+Dashboard updates instantly
+
+Progress bars animate smoothly
+
+📊 7️⃣ OVERALL PROGRESS (ALL COURSES COMBINED)
+Formula:
+Overall Progress =
+Sum of all course progress ÷ Number of courses
+
+Example:
+(45 + 20 + 10) ÷ 3 = 25%
+
+
+Displayed prominently on dashboard.
+
+🎯 8️⃣ AUTO-CONTINUE NEXT VIDEO (ONLY IF VALID)
+Conditions:
+
+Video completion rules satisfied
+
+Focus loss limits not exceeded
+
+Behavior:
+
+Save final progress
+
+Mark video completed
+
+Auto-start next video after 3 seconds
+
+🧑‍🎓 9️⃣ VIVA-READY SHORT EXPLANATION
+
+“The system ensures continuity by saving the user’s valid watch time in real time. If the user switches tabs, loses focus, or stops watching, both the video and timer pause immediately. Progress is saved and resumes from the same point later. The dashboard shows real-time, course-wise and overall progress percentages, ensuring accurate learning analytics.”
+
+🧩 10️⃣ COMPLETE SYSTEM FLOW (SIMPLE)
+Video Plays
+   ↓
+Focus OK → Timer runs
+   ↓
+Focus Lost → Video pauses + Timer pauses + Save
+   ↓
+User Returns → Resume from saved time
+   ↓
+Video Ends → Validate rules
+   ↓
+Dashboard updates course & overall progress
+
+after clicking continue learning or start course need to start automatically ai monitoring with camera if user rejct camara allwoing need to stop that course allow only if user allow camara
+
+COURSE START → AI MONITORING → CAMERA PERMISSION (MANDATORY)
+🎯 REQUIREMENT (Your Rule)
+
+A course or video can start ONLY if the user allows camera access.
+If the user rejects camera permission, the course must not start.
+
+This ensures:
+
+Fair monitoring
+
+No cheating
+
+Strong academic justification
+
+✅ FINAL BEHAVIOR (USER EXPERIENCE)
+🟢 CASE 1: User ALLOWS Camera (Correct Flow)
+User clicks "Start Course" / "Continue Learning"
+        ↓
+System requests camera permission
+        ↓
+Camera allowed
+        ↓
+AI Monitoring starts automatically
+        ↓
+Video starts playing
+        ↓
+Progress tracking ENABLED
+
+
+✔ Course starts
+✔ Video plays
+✔ Monitoring active
+✔ Progress counted
+
+🔴 CASE 2: User REJECTS Camera (BLOCKED FLOW)
+User clicks "Start Course"
+        ↓
+System requests camera permission
+        ↓
+User clicks "Block"
+        ↓
+AI Monitoring FAILS
+        ↓
+Course START IS BLOCKED
+
+UI Result:
+
+Video does NOT play
+
+Course page shows Camera Required
+
+Progress remains 0
+
+Clear message shown
+
+🧱 EXACT UI BEHAVIOR (IMPORTANT)
+When camera is required but not allowed:
+Show overlay / modal:
+📷 Camera Access Required
+
+To start this course, camera access is mandatory
+for AI-based attention and posture monitoring.
+
+[ Allow Camera ]   [ Go Back ]
+
+
+❌ Disable video controls
+❌ Disable progress timer
+
+🧠 TECHNICAL IMPLEMENTATION (CORRECT WAY)
+✅ STEP 1: COURSE START HANDLER
+
+This runs when user clicks Start Course / Continue Learning.
+
+async function handleStartCourse() {
+  const cameraAllowed = await requestCameraPermission();
+
+  if (!cameraAllowed) {
+    blockCourseStart();
+    return;
+  }
+
+  startAIMonitoring();
+  startVideoPlayback();
+}
+
+✅ STEP 2: CAMERA PERMISSION REQUEST (MANDATORY)
+async function requestCameraPermission(): Promise<boolean> {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: true,
+      audio: false,
+    });
+
+    // Immediately stop stream until monitoring starts
+    stream.getTracks().forEach(track => track.stop());
+
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
+
+
+📌 This ensures:
+
+Permission is verified
+
+No fake starts
+
+🚫 STEP 3: BLOCK COURSE IF CAMERA DENIED
+function blockCourseStart() {
+  setCourseBlocked(true);
+
+  showAlert(
+    "Camera permission is required to start this course."
+  );
+}
+
+
+UI:
+
+Disable video iframe
+
+Disable monitoring panel
+
+Disable progress
+
+▶️ STEP 4: START AI MONITORING AUTOMATICALLY
+async function startAIMonitoring() {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    video: true,
+    audio: false,
+  });
+
+  videoRef.current!.srcObject = stream;
+  await videoRef.current!.play();
+
+  setMonitoringActive(true);
+  setCameraActive(true);
+
+  startFaceDetection();
+}
+
+
+📌 No manual “Start Monitoring” needed when starting a course.
+
+⏸️ STEP 5: IF CAMERA IS TURNED OFF MID-COURSE
+
+If user:
+
+Revokes permission
+
+Turns off camera
+
+Device error
+
+System must:
+Pause video
+Pause timer
+Block progress
+Show warning
+
+if (!cameraActive) {
+  pauseVideo();
+  pauseProgress();
+  showAlert("Camera disconnected. Monitoring paused.");
+}
+
+🔐 SECURITY & ANTI-CHEAT (VERY IMPORTANT)
+
+✔ User cannot bypass camera
+✔ Cannot play video without monitoring
+✔ Cannot gain progress without camera
+✔ Firebase progress writes are blocked
+
+📊 DASHBOARD & PROGRESS EFFECT
+Action	Result
+Camera allowed	Progress updates
+Camera denied	Course locked
+Camera off mid-video	Progress paused
+Camera re-enabled	Resume allowed
+🎓 VIVA-READY EXPLANATION (SHORT & STRONG)
+
+“AI monitoring starts automatically when a course begins. Camera access is mandatory, and if the user denies permission, the course does not start. This guarantees authentic learning and prevents misuse of the system.”
+
+ Complete Course System Details
+🏗 System Architecture Overview
+The learning platform consists of three main components:
+1. Course Selection Page (/courses/select/page.tsx)
+2. Individual Course Pages (/lecture/[courseId]/page.tsx) 
+3. Quiz System (/courses/[courseId]/quiz/page.tsx)
+---
+📋 Course Selection Page (/courses/select/page.tsx)
+🎯 Main Purpose
+- Allows users to browse and select from available courses
+- Shows overall learning progress across all courses
+- Manages camera permissions for AI monitoring
+📊 Key Features
+Course Grid Layout:
+// Responsive grid layout
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+Individual Course Cards:
+- Course Status Indicators:
+  - ✅ Completed - All videos finished
+  - 🔄 In Progress - Currently taking course
+  - 🔒 Not Started - Haven't begun yet
+- Progress Visualization:
+  - Circular progress indicator showing completion percentage
+  - Visual progress bar with gradient fill
+  - Statistics: completed videos / total videos
+- Course Information Display:
+  - Course title and description
+  - Total lesson count
+  - Total course duration
+  - Individual course icons based on category
+AI Monitoring Integration:
+- Camera Permission States:
+  - ✅ Granted (Green) - "AI Monitoring Ready"
+  - ❌ Denied (Red) - "Camera Access Required" 
+  - ⏳ Pending (Amber) - "Camera Permission Needed"
+- Real-time Status Banner:
+  - Shows current AI monitoring status
+  - Privacy notice about local processing
+  - Camera requirement explanations
+Action Buttons:
+- Start Course - Begins lecture with AI monitoring
+- Continue Learning - Resumes in-progress courses
+- Take Quiz - Access course assessment (when unlocked)
+- Retake Quiz - Retry assessment (when completed)
+🎨 Course Categories Available:
+1. Web Development (web-development)
+- Complete Web Development Course (10 videos, 10+ hours)
+  - HTML Basics, Forms & Inputs
+  - CSS Basics, Box Model, Flexbox
+  - JavaScript Introduction, Variables & Functions
+  - DOM Manipulation, Mini Website Project
+2. App Development (app-development)
+- Complete Android Development Course (10 videos, 15+ hours)
+  - Android Studio Installation
+  - Kotlin Basics, UI Layouts & Navigation
+  - Activities & Intents, Data Storage
+  - Simple Calculator App, Beginner Project
+3. Game Development (game-development)
+- Complete Unity Game Development Course (10 videos, 20+ hours)
+  - Unity Installation & C# Basics
+  - Game Objects, Scenes & Player Movement
+  - Physics, Collision Detection & 2D Games
+  - UI, Scoring & Complete 2D Game Project
+---
+🎥 Lecture/Monitoring Page (/lecture/[courseId]/page.tsx)
+🎯 Main Purpose
+- Individual course learning with AI-powered monitoring
+- Real-time attention and posture tracking
+- Smart pause/resume based on user focus
+📹 Video Integration:
+// YouTube video embedding with controls
+<iframe
+  src={`${currentVideo.url}?autoplay=${cameraPermissionGranted && !courseBlocked ? '1' : '0'}&enablejsapi=1&controls=0&modestbranding=1`}
+  className="w-full h-full"
+  allowFullScreen
+/>
+🤖 AI Monitoring System:
+Face Detection:
+- Motion-based detection (lightweight, no external models)
+- 160x120 pixel canvas for performance
+- 10fps processing with configurable sensitivity
+- Smart logic: Motion detected = face present, no motion for 3s = face absent
+Session Management:
+- Session Timer: Tracks active learning time (max 1 hour per video)
+- Auto-pause: Video pauses when focus lost or no face detected
+- Auto-resume: 10-second countdown with face detection check
+- Progress Saving: LocalStorage for session continuity
+Focus Tracking:
+- Tab Switch Detection: Monitors browser tab changes
+- Window Blur Detection: Tracks when user leaves window
+- Full-screen Mode: Enhanced monitoring with overlay
+- Smart Countdowns: Visual feedback for auto-resume
+Posture & Attention Monitoring:
+- Simulated AI Analysis: Random status updates for engagement
+- Attention States: "Focused", "Distracted", "Looking away"
+- Posture Alerts: "Good posture", "Leaning forward", "Shoulders hunched"
+- Scoring System: Real-time attention and posture scores
+🎮 Video Controls:
+- Previous/Next Navigation: Move between lessons
+- Fullscreen Toggle: F key or button control
+- Manual Complete: Mark lesson as finished
+- Play/Pause Control: Manual video control override
+📊 Progress Tracking:
+- Individual Video Progress: Completion status per lesson
+- Course Completion: Overall course progress
+- Time Tracking: Session time and total watch time
+- Validation System: Ensures learning requirements met
+---
+📝 Quiz System (/courses/[courseId]/quiz/page.tsx)
+🎯 Main Purpose
+- Course assessment with AI monitoring during quiz
+- Knowledge validation and skill certification
+🔒 Quiz Unlock Requirements:
+// Quiz unlocks only after ALL course videos completed
+const isUnlocked = completedCount >= totalVideos
+📋 Quiz Features:
+Question Types:
+- MCQ Questions: Multiple choice with 4 options
+- Coding Questions: Practical coding challenges
+- Mixed Format: Combines theory and practice
+Real-time Monitoring:
+- Camera Requirement: Quiz monitoring mandatory
+- Face Detection: Ensures user presence during assessment
+- Attention Tracking: Prevents tab switching during quiz
+- Status Indicators: Visual feedback for monitoring state
+Scoring System:
+- 70%+: Excellent (🏆 Certificate level)
+- 50-69%: Good effort (⭐ Great progress)
+- Below 50%: Keep learning (📚 Continue studying)
+Quiz Flow:
+1. Question Display: Clear question presentation
+2. Option Selection: Interactive answer selection
+3. Navigation: Previous/Next question controls
+4. Results: Immediate feedback on completion
+5. Review: Detailed answer analysis
+Answer Review System:
+- Question-by-question breakdown: Shows all answers
+- Correct/Incorrect indicators: Visual feedback
+- Explanations: Why answers were right/wrong
+- Performance analytics: Score breakdown by category
+---
+🔄 Progress Persistence
+LocalStorage Integration:
+// Course progress tracking
+localStorage.setItem(`course_progress_${courseId}`, JSON.stringify({
+  completedVideos: number,
+  totalVideos: number,
+  progress: number,
+  lastAccessed: string
+}))
+// Session continuity
+localStorage.setItem(`session_${courseId}_${videoIndex}`, JSON.stringify({
+  sessionTime: number,
+  timestamp: number
+}))
+Firebase Integration:
+- Real-time Progress: Cloud sync for learning data
+- Quiz Results: Permanent storage of quiz performance
+- Achievement Tracking: Certification and milestones
+- Cross-device Sync: Progress available anywhere
+Data Models:
+interface CourseProgress {
+  completedVideos: number
+  totalVideos: number
+  progress: number
+  lastAccessed: string
+  quiz_completed: boolean
+  quiz_score: number
+}
+interface QuizResult {
+  user_id: string
+  course_id: string
+  score: number
+  correct_answers: number
+  total_questions: number
+  answers: {[key: number]: number}
+  completed_at: string
+  created_at: string
+}
+---
+🛡️ AI Monitoring Features
+Intelligent Pause/Resume:
+- Focus Detection: Tab switching, window blur
+- Face Presence: Motion-based face detection
+- Automatic Pauses: Smart video control
+- Graceful Resumes: Context-aware continuation
+Privacy-First Design:
+- Local Processing: All face/data processed locally
+- No Image Storage: Frames processed and discarded
+- Real-time Only: No recording or storage of video
+Advanced Features:
+- Multi-level Validation: Face + motion + focus tracking
+- Adaptive Sensitivity: Configurable detection thresholds
+- Fallback Systems: Multiple detection methods
+- Performance Optimized: Lightweight algorithms
+---
+🎨 User Experience Enhancements
+Visual Feedback:
+- Progress Rings: Circular progress indicators
+- Status Badges: Clear course state communication
+- Loading States: Smooth transitions and spinners
+- Countdown Timers: Visual feedback for auto-resume
+Accessibility Features:
+- Keyboard Navigation: Arrow keys, shortcuts
+- Screen Reader Support: Semantic HTML structure
+- High Contrast: Clear visual hierarchy
+- Focus Indicators: Visible focus states
+Responsive Design:
+- Mobile Optimized: Touch-friendly controls
+- Tablet Support: Optimized layouts
+- Desktop Experience: Full feature utilization
+---
+This comprehensive system provides a complete learning experience with AI-powered monitoring, progress tracking, and assessment capabilities while maintaining privacy and accessibility standards.
