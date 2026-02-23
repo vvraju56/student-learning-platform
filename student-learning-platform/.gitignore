@@ -31,7 +31,6 @@ public/tf-models/
 *.avi
 *.mkv
 *.webm
-app/courses/
 public/App Development/
 public/Game Development/
 public/Web development/
