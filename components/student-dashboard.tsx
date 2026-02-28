@@ -26,7 +26,7 @@ export function StudentDashboard({ user, profile, videoProgress, sessionData, co
   const [postureStatus, setPostureStatus] = useState("Leaning Forward")
   const [attentionStatus, setAttentionStatus] = useState("Distracted")
   const [cameraStatus, setCameraStatus] = useState("Not Detected")
-  const [aiMonitoringStatus, setAiMonitoringStatus] = useState("Active")
+  const [faceMonitoringStatus, setAiMonitoringStatus] = useState("Active")
   const [realtimeProgress, setRealtimeProgress] = useState(courseProgress || {})
 
   const [recentAlerts, setRecentAlerts] = useState<any[]>([])
@@ -230,8 +230,8 @@ export function StudentDashboard({ user, profile, videoProgress, sessionData, co
                   </div>
                   <div className="d-flex justify-content-between align-items-center py-2">
                     <span className="small text-muted">Face Monitoring</span>
-                    <Badge bg={aiMonitoringStatus === 'Active' ? 'success' : 'danger'}>
-                      {aiMonitoringStatus}
+                    <Badge bg={faceMonitoringStatus === 'Active' ? 'success' : 'danger'}>
+                      {faceMonitoringStatus}
                     </Badge>
                   </div>
                 </div>
@@ -309,7 +309,7 @@ export function StudentDashboard({ user, profile, videoProgress, sessionData, co
                   <div className="col-md-3">
                     <div className="text-center">
                       <div className="h4 text-info mb-1">
-                        {aiMonitoringStatus === 'Active' ? 'Online' : 'Offline'}
+                        {faceMonitoringStatus === 'Active' ? 'Online' : 'Offline'}
                       </div>
                       <div className="small text-muted">System Status</div>
                     </div>

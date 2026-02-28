@@ -37,7 +37,7 @@ const mockCourse: CourseData = {
   ]
 }
 
-export default function AIMonitoredCoursePage() {
+export default function FaceMonitoredCoursePage() {
   const router = useRouter()
   const videoRef = useRef<HTMLIFrameElement>(null)
   
