@@ -17,6 +17,8 @@ import {
   Pause
 } from "lucide-react"
 
+const VIOLATION_LIMIT = 10
+
 interface FaceMonitoringProps {
   videoRef: React.RefObject<HTMLIFrameElement>
   userId: string

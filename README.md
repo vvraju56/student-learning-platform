@@ -1,42 +1,55 @@
 # Student Learning Platform
 
-An AI-powered learning management system with real-time monitoring, progress tracking, and interactive quizzes for Web Development, App Development, and Game Development courses.
+A face-monitoring powered learning management system with real-time monitoring, progress tracking, and interactive quizzes for Web Development, App Development, and Game Development courses.
 
-[![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
+[![Deployed on Render](https://img.shields.io/badge/Deployed%20on-Render-black?style=for-the-badge&logo=render)](https://render.com)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
+[![Firebase](https://img.shields.io/badge/Firebase-Enabled-orange?style=for-the-badge&logo=firebase)](https://firebase.google.com)
+
+![Platform Overview](./docs/images/platform-overview.png)
 
 ## Features
 
-- **Interactive Video Learning**: Watch course videos with AI-powered attention monitoring
-- **Face Detection**: Real-time face detection to ensure student engagement
-- **Progress Tracking**: Track video completion, quiz scores, and learning analytics
-- **Quiz System**: MCQ and coding questions with anti-cheating measures
-- **Study Materials**: Comprehensive study materials for multiple courses
-- **Performance Reports**: Detailed analytics and progress reports
-- **User Authentication**: Secure login with Firebase Authentication
+- **Interactive Video Learning** - Watch course videos with face-powered attention monitoring
+- **Face Detection** - Real-time face detection to ensure student engagement
+- **Progress Tracking** - Track video completion, quiz scores, and learning analytics
+- **Quiz System** - MCQ and coding questions with anti-cheating measures
+- **Study Materials** - Comprehensive study materials for multiple courses
+- **Performance Reports** - Detailed analytics and progress reports
+- **User Authentication** - Secure login with Firebase Authentication
+
+![Dashboard](./docs/images/dashboard.png)
 
 ## Tech Stack
 
 - **Frontend**: Next.js 15, React 18, TypeScript
-- **Styling**: Tailwind CSS, shadcn/ui components
-- **Backend**: Firebase (Firestore, Realtime Database, Authentication)
-- **AI/ML**: TensorFlow.js, BlazeFace for face detection
-- **Deployment**: Vercel
+- **Styling**: Tailwind CSS, shadcn/ui components, Bootstrap
+- **Backend**: Firebase (Firestore, Authentication)
+- **AI/ML**: TensorFlow.js, BlazeFace, face-api.js for face detection
+- **Deployment**: Render
+
+## Live Demo
+
+Visit the live platform: **[student-learning-platform.onrender.com](https://student-learning-platform.onrender.com)**
 
 ## Courses Available
 
 ### 1. Web Development
+![Web Dev](./docs/images/web-dev.png)
 - HTML, CSS, JavaScript fundamentals
 - React, Node.js, Express
 - Full-stack development patterns
 - Responsive design & accessibility
 
 ### 2. App Development
+![App Dev](./docs/images/app-dev.png)
 - Android (Java & Kotlin)
 - Flutter & Dart
 - Mobile UI/UX patterns
 - App deployment strategies
 
 ### 3. Game Development
+![Game Dev](./docs/images/game-dev.png)
 - Unity (C# scripting)
 - Unreal Engine (Blueprints)
 - Godot (GDScript)
@@ -82,13 +95,45 @@ npm run dev
 
 5. Open http://localhost:3000
 
+## Deployment
+
+### Deploy to Render
+
+1. **Push your code to GitHub**
+
+2. **Go to** https://dashboard.render.com
+
+3. **Click "New" → "Web Service"**
+
+4. **Connect your GitHub repo** - select `vvraju56/student-learning-platform`
+
+5. **Configure:**
+   - Name: `student-learning-platform`
+   - Region: Oregon (or your choice)
+   - Branch: `main`
+   - Runtime: `Node`
+   - Build Command: `npm install && npm run build`
+   - Start Command: `npm run start`
+
+6. **Add Environment Variables:**
+   - `NEXT_PUBLIC_FIREBASE_API_KEY`
+   - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+   - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+   - `NEXT_PUBLIC_FIREBASE_DATABASE_URL`
+   - `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+   - `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+   - `NEXT_PUBLIC_FIREBASE_APP_ID`
+
+7. **Click "Create Web Service"**
+
+![Render Deployment](./docs/images/render-deploy.png)
+
 ## Firebase Setup
 
 1. Create a new Firebase project at https://console.firebase.google.com
 2. Enable Authentication (Email/Password)
 3. Create Firestore Database
-4. Create Realtime Database
-5. Add authorized domains for your deployment
+4. Add authorized domains for your deployment
 
 ### Firestore Collections
 
@@ -97,6 +142,7 @@ npm run dev
 | `video_progress` | Video completion records |
 | `quiz_attempts` | Quiz attempt history |
 | `focus_analytics` | Attention monitoring data |
+| `users` | User profiles and data |
 
 ## Project Structure
 
@@ -110,40 +156,26 @@ student-learning-platform/
 │   ├── profile/           # User profile
 │   └── reports/           # Performance reports
 ├── components/            # React components
-│   └── ui/               # UI components (shadcn)
+│   ├── ui/               # UI components (shadcn)
+│   ├── face-monitoring*  # Face monitoring components
 ├── hooks/                # Custom React hooks
+│   ├── use-face-monitoring*
 ├── lib/                  # Utility functions & Firebase config
 ├── data/                 # Course data & study materials
 ├── services/             # API services
 └── styles/               # Global styles
 ```
 
-## Deployment
-
-### Deploy to Vercel
-
-1. Push code to GitHub
-2. Go to https://vercel.com
-3. Sign in with GitHub
-4. Click "Add New Project"
-5. Import `student-learning-platform` repository
-6. Set Root Directory to `student-learning-platform`
-7. Add environment variables from `.env.local`
-8. Click "Deploy"
-
-## Scripts
-
-```bash
-npm run dev      # Start development server
-npm run build    # Build for production
-npm run start    # Start production server
-npm run lint     # Run ESLint
-```
-
-## Key Features Explained
+## Key Features
 
 ### Face Detection System
-Uses TensorFlow.js with BlazeFace model to detect student presence during video lectures. Pauses video when face is not detected.
+![Face Monitoring](./docs/images/face-monitoring.png)
+
+Uses TensorFlow.js with BlazeFace model to detect student presence during video lectures:
+- Pauses video when face is not detected
+- Tracks attention status
+- Monitors tab visibility
+- Logs focus analytics
 
 ### Progress Tracking
 - Videos watched count
@@ -156,6 +188,36 @@ Uses TensorFlow.js with BlazeFace model to detect student presence during video 
 - Tab switch detection
 - Face presence verification
 - Timed quiz sessions
+
+### Quiz Interface
+![Quiz](./docs/images/quiz.png)
+
+## Scripts
+
+```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run start    # Start production server
+npm run lint     # Run ESLint
+npm run test     # Run tests
+```
+
+## Screenshots
+
+### Login Page
+![Login](./docs/images/login.png)
+
+### Course Selection
+![Courses](./docs/images/courses.png)
+
+### Video Learning
+![Video Learning](./docs/images/video-learning.png)
+
+### Quiz System
+![Quiz System](./docs/images/quiz-system.png)
+
+### Analytics
+![Analytics](./docs/images/analytics.png)
 
 ## Contributing
 
@@ -177,6 +239,7 @@ This project is licensed under the MIT License.
 ## Acknowledgments
 
 - Firebase for backend services
-- Vercel for hosting
+- Render for hosting
 - TensorFlow.js for face detection
 - shadcn/ui for UI components
+- Next.js team for the framework
