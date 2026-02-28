@@ -1,6 +1,7 @@
 "use client"
 
-import { useAIMonitoring } from "@/hooks/use-aimonitoring"
+import { useEffect } from "react"
+import { useFaceMonitoring } from "@/hooks/use-face-monitoring"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -16,7 +17,7 @@ import {
   Pause
 } from "lucide-react"
 
-interface AIMonitoringProps {
+interface FaceMonitoringProps {
   videoRef: React.RefObject<HTMLIFrameElement>
   userId: string
   courseId: string
@@ -24,14 +25,14 @@ interface AIMonitoringProps {
   onProgressUpdate?: (validTime: number) => void
 }
 
-export default function AIMonitoringComponent({ 
+export default function FaceMonitoringComponent({ 
   videoRef, 
   userId, 
   courseId, 
   videoId,
   onProgressUpdate 
-}: AIMonitoringProps) {
-  const { states, violations, validWatchTime, startMonitoring, stopMonitoring, requestCameraPermission, pauseVideo, resumeVideo } = useAIMonitoring(videoRef)
+}: FaceMonitoringProps) {
+  const { states, violations, validWatchTime, startMonitoring, stopMonitoring, requestCameraPermission, pauseVideo, resumeVideo } = useFaceMonitoring(videoRef)
 
   // Auto-save progress
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function AIMonitoringComponent({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Camera className="h-5 w-5" />
-            AI Monitoring
+            Face Monitoring
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -202,7 +203,7 @@ export default function AIMonitoringComponent({
       {/* Instructions */}
       <Card>
         <CardContent className="p-4">
-          <h3 className="font-medium mb-2">🎯 AI Monitoring Rules</h3>
+          <h3 className="font-medium mb-2">🎯 Face Monitoring Rules</h3>
           <ul className="text-sm text-gray-600 space-y-1">
             <li>• Progress counted only when face is detected AND tab is active</li>
             <li>• Camera must remain uncovered throughout the session</li>

@@ -395,7 +395,7 @@ export default function LecturePage() {
               Video {currentVideoIndex + 1} of {course.modules[0]?.videos?.length || 0}
             </div>
             <Badge variant={monitoringActive ? "default" : "secondary"}>
-              {monitoringActive ? "AI Monitoring Active" : "Monitoring Off"}
+              {monitoringActive ? "Face Monitoring Active" : "Monitoring Off"}
             </Badge>
           </div>
         </div>
@@ -515,7 +515,7 @@ export default function LecturePage() {
               ) : (
                 <Button onClick={startMonitoring}>
                   <Camera className="mr-2 h-4 w-4" />
-                  Start AI Monitoring
+                  Start Face Monitoring
                 </Button>
               )}
             </div>
@@ -543,9 +543,9 @@ export default function LecturePage() {
           </div>
         </div>
 
-        {/* Sidebar - AI Monitoring Panel */}
+        {/* Sidebar - Face Monitoring Panel */}
         <div className="w-80 bg-gray-800 border-l border-gray-700 p-4">
-          <h3 className="font-semibold mb-4">AI Monitoring Status</h3>
+          <h3 className="font-semibold mb-4">Face Monitoring Status</h3>
           
           {/* Camera Preview */}
           <div className="mb-4">

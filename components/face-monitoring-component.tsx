@@ -9,8 +9,7 @@ import {
   Eye, User, Monitor, Activity
 } from "lucide-react"
 
-export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<any> }) {
-  const [monitoringActive, setMonitoringActive] = useState(false)
+export function FaceMonitoringComponent({ videoRef }: { videoRef: React.RefObject<any> }) {
   const [state, setState] = useState({
     isMonitoring: false,
     cameraActive: false,
@@ -49,7 +48,7 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
     let motion = 0
     for (let i = 0; i < data.length; i += 4) {
       const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
-      const grayPrev = (data[i - 4]) * 0.299 + (data[i - 3]) * 0.587 + (data[i - 2]) * 0.114
+      const grayPrev = (data[i - 4) * 0.299 + (data[i - 3] * 0.587 + (data[i - 2] * 0.114
       const diff = Math.abs(gray - grayPrev)
       if (diff > 30) motion++
     }
@@ -85,7 +84,6 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream
-        await videoRef.current.play()
       }
 
       if (canvasRef.current) {
@@ -94,7 +92,6 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
       }
 
       streamRef.current = stream
-      setMonitoringActive(true)
       setState(prev => ({ 
         ...prev, 
         cameraActive: true, 
@@ -107,7 +104,6 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
       
     } catch (error) {
       console.error("❌ Camera access denied:", error)
-      setState(prev => ({ ...prev, isMonitoring: false }))
       alert("Camera access is required for monitoring. Please allow camera access.")
     }
   }, [])
@@ -122,24 +118,21 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
       videoRef.current.srcObject = null
     }
 
-    setMonitoringActive(false)
     setState(prev => ({ 
       ...prev, 
-        cameraActive: false, 
-        isMonitoring: false, 
-        faceDetected: false,
-        attentionStatus: "Absent"
+      cameraActive: false, 
+      isMonitoring: false, 
+      faceDetected: false,
+      attentionStatus: "Absent"
     }))
     console.log("⏹️ Camera stopped - Monitoring inactive")
   }, [])
 
   const startDetectionLoop = useCallback(() => {
-    if (!monitoringActive) return
+    if (!state.isMonitoring) return
 
     const detect = () => {
-      if (!monitoringActive) return
-      
-      const faceDetected = simpleFaceDetection()
+      const faceDetected = simpleFaceDetection(videoRef.current, canvasRef.current)
       const wasFaceDetected = state.faceDetected
       
       setState(prev => ({ ...prev, faceDetected }))
@@ -174,49 +167,49 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
 
     const interval = setInterval(detect, 100)
     return () => clearInterval(interval)
-  }, [monitoringActive, state.faceDetected])
+  }, [state.isMonitoring])
 
   const handleVisibilityChange = useCallback(() => {
-    if (!monitoringActive) return
+    if (!state.isMonitoring) return
     
     if (document.hidden) {
       setState(prev => ({ ...prev, attentionStatus: "Distracted" }))
       
       if (videoRef.current && !videoRef.current?.paused) {
         videoRef.current.pause()
-        setState(prev => ({
-          ...prev,
-          violations: {
-            ...prev.violations,
-            tabSwitches: prev.violations.tabSwitches + 1
-          }
-        }))
-        console.log("🚫 Tab switched - Video auto-paused")
+          setState(prev => ({
+            ...prev,
+            violations: {
+              ...prev.violations,
+              tabSwitches: prev.violations.tabSwitches + 1
+            }
+          }))
+          console.log("🚫 Tab switched - Video auto-paused")
       }
     } else {
-      setState(prev => ({ ...prev, attentionStatus: "Focused" }))
+      setState(prev => ({ ...prev, attentionStatus: "Focused" })
     }
-  }, [monitoringActive])
+  }, [state.isMonitoring])
 
   const handleBlur = useCallback(() => {
-    if (!monitoringActive) return
-    setState(prev => ({ ...prev, attentionStatus: "Distracted" }))
-  }, [monitoringActive])
+    if (!state.isMonitoring) return
+      setState(prev => ({ ...prev, attentionStatus: "Distracted" })
+  }, [state.isMonitoring])
 
   const handleFocus = useCallback(() => {
-    if (!monitoringActive) return
-    setState(prev => ({ ...prev, attentionStatus: "Focused" }))
-  }, [monitoringActive])
+    if (!state.isMonitoring) return
+      setState(prev => ({ ...prev, attentionStatus: "Focused" })
+  }, [state.isMonitoring])
 
   useEffect(() => {
     const handleBlur = () => {
-      if (!monitoringActive) return
-      setState(prev => ({ ...prev, attentionStatus: "Distracted" }))
+      if (!state.isMonitoring) return
+      setState(prev => ({ ...prev, attentionStatus: "Distracted" })
     }
 
     const handleFocus = () => {
-      if (!monitoringActive) return
-      setState(prev => ({ ...prev, attentionStatus: "Focused" }))
+      if (!state.isMonitoring) return
+      setState(prev => ({ ...prev, attentionStatus: "Focused" })
     }
 
     document.addEventListener("visibilitychange", handleVisibilityChange)
@@ -228,32 +221,7 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
       document.removeEventListener("blur", handleBlur)
       document.removeEventListener("focus", handleFocus)
     }
-  }, [monitoringActive])
-
-  useEffect(() => {
-    if (!monitoringActive) {
-      console.log("🧠 Attention tracking disabled")
-      if (videoRef.current && !videoRef.current.paused) {
-        videoRef.current.pause()
-      }
-      return
-    }
-
-    if (!state.cameraActive) {
-      console.log("📷 Camera Off")
-      return
-    }
-
-    if (!state.faceDetected) {
-      console.log("🧠 Attention tracking disabled - No face detected")
-      if (videoRef.current && !videoRef.current.paused) {
-        videoRef.current.pause()
-      }
-      return
-    }
-
-    console.log("🧠 Attention tracking enabled")
-  }, [monitoringActive, state.cameraActive, state.faceDetected])
+  }, [state.isMonitoring])
 
   const actions = {
     startMonitoring: () => {
@@ -312,14 +280,11 @@ export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<
   }
 
   return { 
-    state: {
-      ...state,
-      isMonitoring: monitoringActive
-    }, 
+    state,
     actions,
     videoRef,
     canvasRef,
-    streamRef,
-    monitoringActive
+    streamRef
+  }
   }
 }

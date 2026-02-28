@@ -439,7 +439,7 @@ export default function QuizPage() {
               </div>
             </div>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>AI Monitoring</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
@@ -547,7 +547,7 @@ export default function QuizPage() {
               </div>
             </div>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>AI Monitoring</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>

@@ -166,7 +166,7 @@ export function MonitoringProvider({ children, userId }: MonitoringProviderProps
   }
 
   const stopMonitoring = () => {
-    console.log('⏹️ Stopping AI Monitoring')
+    console.log('⏹️ Stopping Face Monitoring')
     
     setIsMonitoring(false)
     setCameraStatus(false)
@@ -176,7 +176,7 @@ export function MonitoringProvider({ children, userId }: MonitoringProviderProps
     setIsVideoPlaying(false)
     setTimerPaused(false)
     
-    console.log('⏹️ AI Monitoring Stopped')
+    console.log('⏹️ Face Monitoring Stopped')
   }
 
   const startVideoPlayback = (courseId: string, videoId: string) => {

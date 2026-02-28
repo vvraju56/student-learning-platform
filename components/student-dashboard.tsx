@@ -229,7 +229,7 @@ export function StudentDashboard({ user, profile, videoProgress, sessionData, co
                     </Badge>
                   </div>
                   <div className="d-flex justify-content-between align-items-center py-2">
-                    <span className="small text-muted">AI Monitoring</span>
+                    <span className="small text-muted">Face Monitoring</span>
                     <Badge bg={aiMonitoringStatus === 'Active' ? 'success' : 'danger'}>
                       {aiMonitoringStatus}
                     </Badge>

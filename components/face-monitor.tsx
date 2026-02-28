@@ -10,7 +10,7 @@ import { Video, VideoOff } from "lucide-react"
 
 const ALERT_COOLDOWN = 10000 // 10 seconds between alerts of same type
 
-export function AiMonitor({ userId }: { userId: string }) {
+export function FaceMonitor({ userId }: { userId: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [isMonitoring, setIsMonitoring] = useState(false)
   const [status, setStatus] = useState<"Active" | "Inactive">("Inactive")
@@ -84,7 +84,7 @@ export function AiMonitor({ userId }: { userId: string }) {
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
-          AI Monitoring
+          Face Monitoring
           <Badge variant={status === "Active" ? "default" : "secondary"}>{status}</Badge>
         </CardTitle>
       </CardHeader>

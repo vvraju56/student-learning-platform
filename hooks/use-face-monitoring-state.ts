@@ -9,8 +9,8 @@ import {
   Eye, User, Monitor, Activity
 } from "lucide-react"
 
-// Types for AI Monitoring system
-interface AIMonitoringState {
+// Types for Face Monitoring system
+interface FaceMonitoringState {
   isMonitoring: boolean
   cameraActive: boolean
   faceDetected: boolean
@@ -25,7 +25,7 @@ interface AIMonitoringState {
   }
 }
 
-interface AIMonitoringActions {
+interface FaceMonitoringActions {
   startMonitoring: () => void
   stopMonitoring: () => void
   pauseVideo: () => void
@@ -87,13 +87,13 @@ const analyzeAttention = (
   return eyesOpen && lookingForward ? "Focused" : (eyesOpen ? "Distracted" : "Absent")
 }
 
-// Main AI Monitoring hook
-export function useAIMonitoring(): AIMonitoringState & AIMonitoringActions {
+// Main Face Monitoring hook
+export function useFaceMonitoring(): FaceMonitoringState & FaceMonitoringActions {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   
-  const [state, setState] = useState<AIMonitoringState>({
+  const [state, setState] = useState<FaceMonitoringState>({
     isMonitoring: false,
     cameraActive: false,
     faceDetected: false,
@@ -304,7 +304,7 @@ export function useAIMonitoring(): AIMonitoringState & AIMonitoringActions {
     setState(prev => ({ ...prev, attentionStatus: status }))
   }, [])
 
-  const actions: AIMonitoringActions = {
+  const actions: FaceMonitoringActions = {
     startMonitoring: startCamera,
     stopMonitoring: stopCamera,
     pauseVideo,
