@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useMemo } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import * as tf from "@tensorflow/tfjs"
@@ -71,23 +71,40 @@ const quizData: Record<string, { mcqs: typeof webDevMCQs; coding: typeof webDevC
 }
 
 const styles: any = {
-  page: { minHeight: "100vh", background: "#0b0f14", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" },
-  card: { background: "#111827", padding: 32, borderRadius: 16, maxWidth: 500, width: "100%", margin: "0 auto" },
+  page: { minHeight: "100vh", background: "#0b0f14", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", padding: "20px" },
+  card: { background: "#111827", padding: "clamp(20px, 5vw, 32px)", borderRadius: 16, maxWidth: 500, width: "100%", margin: "0 auto" },
   video: { width: "100%", aspectRatio: "4/3", borderRadius: 12, objectFit: "cover", marginBottom: 15 },
-  btn: { width: "100%", padding: 14, background: "#3b82f6", border: "none", color: "#fff", borderRadius: 10, cursor: "pointer", fontWeight: 600, marginTop: 10 },
-  header: { position: "sticky", top: 0, background: "rgba(15,23,42,0.95)", padding: "15px 25px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1f2937" },
-  layout: { display: "grid", gridTemplateColumns: "280px 1fr", minHeight: "calc(100vh - 70px)" },
-  sidebar: { background: "#0f172a", padding: 25, borderRight: "1px solid #1f2937" },
-  main: { padding: 30, maxWidth: 900, margin: "0 auto" },
-  questionBox: { background: "#111827", border: "1px solid #1f2937", borderRadius: 20, padding: 30, marginBottom: 25 },
+  btn: { width: "100%", padding: "14px", background: "#3b82f6", border: "none", color: "#fff", borderRadius: 10, cursor: "pointer", fontWeight: 600, marginTop: 10, fontSize: "clamp(14px, 3vw, 16px)" },
+  header: { position: "sticky", top: 0, background: "rgba(15,23,42,0.95)", padding: "15px 25px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1f2937", flexWrap: "wrap", gap: 10 },
+  layout: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", minHeight: "calc(100vh - 70px)", gap: 0 },
+  sidebar: { background: "#0f172a", padding: "clamp(15px, 3vw, 25px)", borderRight: "1px solid #1f2937" },
+  main: { padding: "clamp(15px, 4vw, 30px)", maxWidth: 900, margin: "0 auto", width: "100%" },
+  questionBox: { background: "#111827", border: "1px solid #1f2937", borderRadius: 20, padding: "clamp(15px, 4vw, 30px)", marginBottom: 25 },
   focused: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 20, background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid #22c55e" },
   warning: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 20, background: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid #ef4444" },
+}
+
+const mobileStyles = {
+  header: { flexDirection: "column" as const, alignItems: "stretch", gap: 10 },
+  layout: { gridTemplateColumns: "1fr" as const },
+  sidebar: { borderRight: "none", borderBottom: "1px solid #1f2937" },
+  questionGrid: { gridTemplateColumns: "repeat(3, 1fr)" as const },
 }
 
 export default function QuizPage() {
   const params = useParams()
   const courseId = (params?.id as string) || "web-development"
   const quiz = quizData[courseId] || quizData["web-development"]
+  
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+  const isMobile = useMemo(() => windowWidth < 768, [windowWidth])
+  const isTablet = useMemo(() => windowWidth >= 768 && windowWidth < 1024, [windowWidth])
+  
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
   
   const [quizState, setQuizState] = useState<QuizState>("ready")
   const [faceDetected, setFaceDetected] = useState(false)
@@ -473,43 +490,43 @@ export default function QuizPage() {
 
     return (
       <div style={styles.page}>
-        <header style={styles.header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-            <button onClick={() => { setQuizState("ready"); setBlockUI(false); setNoFaceCountdown(null); setCurrentQuestion(0); }} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "10px 18px", borderRadius: 10, cursor: "pointer" }}>← Back</button>
-            <span style={{ fontSize: 16, fontWeight: 600 }}>Section A: MCQs</span>
+        <header style={{ ...styles.header, flexDirection: isMobile ? "column" : "row", gap: isMobile ? "12px" : "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 15, flexWrap: "wrap" }}>
+            <button onClick={() => { setQuizState("ready"); setBlockUI(false); setNoFaceCountdown(null); setCurrentQuestion(0); }} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>← Back</button>
+            <span style={{ fontSize: "clamp(14px, 3vw, 16px)", fontWeight: 600 }}>Section A: MCQs</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "20px", flexWrap: "wrap", justifyContent: isMobile ? "center" : "flex-end" }}>
             <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ width: 6, height: 6, background: "#22c55e", borderRadius: "50%" }}></span>
-              Tab monitoring active
+              {!isMobile && "Tab monitoring"}
             </div>
             {!faceDetected && noFaceCountdown !== null && (
-              <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 16px", borderRadius: 20, color: "#ef4444", fontWeight: 600 }}>
-                ⚠️ Face missing! Returning in {noFaceCountdown}s
+              <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 16px", borderRadius: 20, color: "#ef4444", fontWeight: 600, fontSize: "clamp(11px, 2vw, 13px)" }}>
+                ⚠️ Face missing! {noFaceCountdown}s
               </div>
             )}
             {faceDetected && <div style={styles.focused}>● Focused</div>}
-            <div style={{ background: "#0f172a", border: "1px solid #3b82f6", padding: "10px 20px", borderRadius: 25, color: "#3b82f6", fontWeight: 700 }}>{formatTime(timeLeft)}</div>
-            <button onClick={handleFinishMCQ} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Finish →</button>
+            <div style={{ background: "#0f172a", border: "1px solid #3b82f6", padding: "10px 20px", borderRadius: 25, color: "#3b82f6", fontWeight: 700, fontSize: "clamp(14px, 3vw, 16px)" }}>{formatTime(timeLeft)}</div>
+            <button onClick={handleFinishMCQ} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Finish →</button>
           </div>
         </header>
 
-        <div style={styles.layout}>
-          <aside style={styles.sidebar}>
-            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20, marginBottom: 20 }}>
-              <div style={{ fontSize: 12, textTransform: "uppercase", color: "#94a3b8", marginBottom: 15 }}>Questions</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+        <div style={{ ...styles.layout, gridTemplateColumns: isMobile ? "1fr" : "280px 1fr" }}>
+          <aside style={{ ...styles.sidebar, padding: isMobile ? "15px" : "25px", borderRight: isMobile ? "none" : "1px solid #1f2937", borderBottom: isMobile ? "1px solid #1f2937" : "none" }}>
+            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: isMobile ? "12px" : 20, marginBottom: isMobile ? "12px" : 20 }}>
+              <div style={{ fontSize: 12, textTransform: "uppercase", color: "#94a3b8", marginBottom: isMobile ? "10px" : 15 }}>Questions</div>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${isMobile ? 5 : 5}, 1fr)`, gap: isMobile ? "6px" : 8 }}>
                 {quiz.mcqs.map((_, idx) => (
                   <div key={idx} onClick={() => setCurrentQuestion(idx)} style={{ 
                     aspectRatio: 1, display: "flex", alignItems: "center", justifyContent: "center", 
                     background: idx === currentQuestion ? "#3b82f6" : answers[idx] !== undefined ? "#3b82f6" : "#0f172a", 
-                    border: `1px solid ${idx === currentQuestion ? "#3b82f6" : "#1f2937"}`, borderRadius: 8, fontSize: 12, cursor: "pointer"
+                    border: `1px solid ${idx === currentQuestion ? "#3b82f6" : "#1f2937"}`, borderRadius: 8, fontSize: isMobile ? "10px" : 12, cursor: "pointer"
                   }}>{idx + 1}</div>
                 ))}
               </div>
             </div>
-            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
+            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: isMobile ? "12px" : 20 }}>
+              <div style={{ fontSize: isMobile ? "12px" : 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
@@ -524,33 +541,33 @@ export default function QuizPage() {
 
           <main style={styles.main}>
             <div style={styles.questionBox}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-                <span style={{ background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>Q{currentQuestion + 1} of {quiz.mcqs.length}</span>
-                <span style={{ color: "#94a3b8", fontSize: 13 }}>1 mark</span>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: "10px" }}>
+                <span style={{ background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: "clamp(11px, 2vw, 13px)", fontWeight: 600 }}>Q{currentQuestion + 1} of {quiz.mcqs.length}</span>
+                <span style={{ color: "#94a3b8", fontSize: "clamp(11px, 2vw, 13px)" }}>1 mark</span>
               </div>
-              <div style={{ fontSize: 17, lineHeight: 1.6, marginBottom: 25 }}>{q.question}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ fontSize: "clamp(15px, 3vw, 17px)", lineHeight: 1.6, marginBottom: 25 }}>{q.question}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? "10px" : 12 }}>
                 {q.options.map((opt, idx) => (
                   <div key={idx} onClick={() => setAnswers({ ...answers, [currentQuestion]: idx })} style={{ 
                     background: answers[currentQuestion] === idx ? "rgba(59,130,246,0.15)" : "#0f172a", 
                     border: `2px solid ${answers[currentQuestion] === idx ? "#3b82f6" : "#1f2937"}`, 
-                    borderRadius: 12, padding: "16px 20px", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: 15
+                    borderRadius: 12, padding: isMobile ? "12px 15px" : "16px 20px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: isMobile ? "10px" : 15, flexWrap: "wrap"
                   }}>
-                    <span style={{ width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", background: answers[currentQuestion] === idx ? "#3b82f6" : "#1f2937", borderRadius: 8, fontWeight: 600, fontSize: 14 }}>
+                    <span style={{ width: isMobile ? "28px" : 32, height: isMobile ? "28px" : 32, display: "flex", alignItems: "center", justifyContent: "center", background: answers[currentQuestion] === idx ? "#3b82f6" : "#1f2937", borderRadius: 8, fontWeight: 600, fontSize: isMobile ? "12px" : 14, flexShrink: 0 }}>
                       {String.fromCharCode(65 + idx)}
                     </span>
-                    <span>{opt}</span>
+                    <span style={{ fontSize: "clamp(13px, 2vw, 15px)" }}>{opt}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 30 }}>
-              <button onClick={() => setCurrentQuestion(c => c - 1)} disabled={currentQuestion === 0} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: currentQuestion === 0 ? "not-allowed" : "pointer", opacity: currentQuestion === 0 ? 0.4 : 1 }}>← Previous</button>
+            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 30, flexWrap: "wrap", gap: "10px" }}>
+              <button onClick={() => setCurrentQuestion(c => c - 1)} disabled={currentQuestion === 0} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: isMobile ? "10px 18px" : "14px 28px", borderRadius: 10, cursor: currentQuestion === 0 ? "not-allowed" : "pointer", opacity: currentQuestion === 0 ? 0.4 : 1, fontSize: "clamp(12px, 2vw, 14px)" }}>← Previous</button>
               {currentQuestion === quiz.mcqs.length - 1 ? (
-                <button onClick={handleFinishMCQ} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "14px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Proceed to Coding →</button>
+                <button onClick={handleFinishMCQ} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: isMobile ? "10px 18px" : "14px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Proceed to Coding →</button>
               ) : (
-                <button onClick={() => setCurrentQuestion(c => c + 1)} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: "pointer" }}>Next →</button>
+                <button onClick={() => setCurrentQuestion(c => c + 1)} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: isMobile ? "10px 18px" : "14px 28px", borderRadius: 10, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Next →</button>
               )}
             </div>
           </main>
@@ -582,48 +599,48 @@ export default function QuizPage() {
 
     return (
       <div style={styles.page}>
-        <header style={styles.header}>
-          <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-            <button onClick={() => { setQuizState("ready"); setBlockUI(false); setNoFaceCountdown(null); setCurrentQuestion(0); }} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "10px 18px", borderRadius: 10, cursor: "pointer" }}>← Back</button>
-            <span style={{ fontSize: 16, fontWeight: 600 }}>Section B: Coding</span>
+        <header style={{ ...styles.header, flexDirection: isMobile ? "column" : "row", gap: isMobile ? "12px" : "20px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 15, flexWrap: "wrap" }}>
+            <button onClick={() => { setQuizState("ready"); setBlockUI(false); setNoFaceCountdown(null); setCurrentQuestion(0); }} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "10px 18px", borderRadius: 10, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>← Back</button>
+            <span style={{ fontSize: "clamp(14px, 3vw, 16px)", fontWeight: 600 }}>Section B: Coding</span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? "10px" : "20px", flexWrap: "wrap", justifyContent: isMobile ? "center" : "flex-end" }}>
             <div style={{ fontSize: 11, color: "#94a3b8", display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ width: 6, height: 6, background: "#22c55e", borderRadius: "50%" }}></span>
-              Tab monitoring active
+              {!isMobile && "Tab monitoring"}
             </div>
             {!faceDetected && noFaceCountdown !== null && (
-              <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 16px", borderRadius: 20, color: "#ef4444", fontWeight: 600 }}>
-                ⚠️ Face missing! Returning in {noFaceCountdown}s
+              <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 16px", borderRadius: 20, color: "#ef4444", fontWeight: 600, fontSize: "clamp(11px, 2vw, 13px)" }}>
+                ⚠️ Face missing! {noFaceCountdown}s
               </div>
             )}
-            {faceDetected && <div style={{ color: "#22c55e" }}>✓ Face OK</div>}
-            <button onClick={handleSubmit} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Submit Quiz</button>
+            {faceDetected && <div style={{ color: "#22c55e", fontSize: "clamp(12px, 2vw, 14px)" }}>✓ Face OK</div>}
+            <button onClick={handleSubmit} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Submit Quiz</button>
           </div>
         </header>
 
-        <div style={styles.layout}>
-          <aside style={styles.sidebar}>
-            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20, marginBottom: 20 }}>
-              <div style={{ fontSize: 12, textTransform: "uppercase", color: "#94a3b8", marginBottom: 15 }}>Questions</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        <div style={{ ...styles.layout, gridTemplateColumns: isMobile ? "1fr" : "280px 1fr" }}>
+          <aside style={{ ...styles.sidebar, padding: isMobile ? "15px" : "25px", borderRight: isMobile ? "none" : "1px solid #1f2937", borderBottom: isMobile ? "1px solid #1f2937" : "none" }}>
+            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: isMobile ? "12px" : 20, marginBottom: isMobile ? "12px" : 20 }}>
+              <div style={{ fontSize: 12, textTransform: "uppercase", color: "#94a3b8", marginBottom: isMobile ? "10px" : 15 }}>Questions</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: isMobile ? "6px" : 8 }}>
                 {quiz.coding.map((_, idx) => (
                   <div key={idx} onClick={() => setCurrentQuestion(idx)} style={{ 
                     aspectRatio: 1, display: "flex", alignItems: "center", justifyContent: "center", 
                     background: idx === currentQuestion ? "#3b82f6" : codingAnswers[idx] ? "#3b82f6" : "#0f172a", 
-                    border: `1px solid ${idx === currentQuestion ? "#3b82f6" : "#1f2937"}`, borderRadius: 8, fontSize: 12, cursor: "pointer"
+                    border: `1px solid ${idx === currentQuestion ? "#3b82f6" : "#1f2937"}`, borderRadius: 8, fontSize: isMobile ? "10px" : 12, cursor: "pointer"
                   }}>{idx + 1}</div>
                 ))}
               </div>
             </div>
-            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
+            <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: isMobile ? "12px" : 20 }}>
+              <div style={{ fontSize: isMobile ? "12px" : 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 15 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: isMobile ? "6px" : 10, marginTop: isMobile ? "10px" : 15 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "6px" : 10, background: "#0f172a", borderRadius: 10, fontSize: isMobile ? "10px" : 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
                   <span>Face</span><span style={{ color: faceDetected ? "#22c55e" : "#ef4444" }}>{faceDetected ? "OK" : "No Face"}</span>
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "6px" : 10, background: "#0f172a", borderRadius: 10, fontSize: isMobile ? "10px" : 12 }}>
                   <span>Camera</span><span>{cameraActive ? "On" : "Off"}</span>
                 </div>
               </div>
@@ -632,16 +649,16 @@ export default function QuizPage() {
 
           <main style={styles.main}>
             <div style={styles.questionBox}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
-                <span style={{ background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>Coding Q{currentQuestion + 1}</span>
-                <span style={{ color: "#94a3b8", fontSize: 13 }}>{cq.marks} marks</span>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: "10px" }}>
+                <span style={{ background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: "clamp(11px, 2vw, 13px)", fontWeight: 600 }}>Coding Q{currentQuestion + 1}</span>
+                <span style={{ color: "#94a3b8", fontSize: "clamp(11px, 2vw, 13px)" }}>{cq.marks} marks</span>
               </div>
-              <h3 style={{ color: "#fff", marginBottom: 15 }}>{cq.title}</h3>
-              <p style={{ color: "#94a3b8", marginBottom: 20, lineHeight: 1.6 }}>{cq.description}</p>
+              <h3 style={{ color: "#fff", marginBottom: 15, fontSize: "clamp(16px, 3vw, 20px)" }}>{cq.title}</h3>
+              <p style={{ color: "#94a3b8", marginBottom: 20, lineHeight: 1.6, fontSize: "clamp(13px, 2vw, 15px)" }}>{cq.description}</p>
               <div>
-                <div style={{ color: "#94a3b8", fontSize: 14, marginBottom: 10 }}>Your Answer:</div>
-                <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: 12, color: "#f87171" }}>
-                  Copy/Paste is disabled during the test. Tab switching will terminate the quiz.
+                <div style={{ color: "#94a3b8", fontSize: "clamp(12px, 2vw, 14px)", marginBottom: 10 }}>Your Answer:</div>
+                <div style={{ background: "rgba(239,68,68,0.1)", border: "1px solid #ef4444", borderRadius: 8, padding: "8px 12px", marginBottom: 10, fontSize: isMobile ? "10px" : 12, color: "#f87171" }}>
+                  Copy/Paste disabled | Tab switch terminates quiz
                 </div>
                 <textarea
                   value={codingAnswers[currentQuestion] || ""}
@@ -657,15 +674,15 @@ export default function QuizPage() {
                   onContextMenu={(e) => e.preventDefault()}
                   onDrop={(e) => e.preventDefault()}
                   placeholder="Write your code here..."
-                  style={{ width: "100%", minHeight: 200, background: "#0f172a", border: "2px solid #1f2937", borderRadius: 12, padding: 15, color: "#e2e8f0", fontFamily: "monospace", fontSize: 14, resize: "vertical" }}
+                  style={{ width: "100%", minHeight: isMobile ? 150 : 200, background: "#0f172a", border: "2px solid #1f2937", borderRadius: 12, padding: isMobile ? "12px" : 15, color: "#e2e8f0", fontFamily: "monospace", fontSize: isMobile ? "13px" : 14, resize: "vertical" }}
                 />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 30 }}>
-                <button onClick={() => setCurrentQuestion(c => c - 1)} disabled={currentQuestion === 0} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: currentQuestion === 0 ? "not-allowed" : "pointer", opacity: currentQuestion === 0 ? 0.4 : 1 }}>← Previous</button>
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 30, flexWrap: "wrap", gap: "10px" }}>
+                <button onClick={() => setCurrentQuestion(c => c - 1)} disabled={currentQuestion === 0} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: isMobile ? "10px 18px" : "14px 28px", borderRadius: 10, cursor: currentQuestion === 0 ? "not-allowed" : "pointer", opacity: currentQuestion === 0 ? 0.4 : 1, fontSize: "clamp(12px, 2vw, 14px)" }}>← Previous</button>
                 {currentQuestion === quiz.coding.length - 1 ? (
-                  <button onClick={handleSubmit} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "14px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Submit Quiz</button>
+                  <button onClick={handleSubmit} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: isMobile ? "10px 18px" : "14px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Submit Quiz</button>
                 ) : (
-                  <button onClick={() => setCurrentQuestion(c => c + 1)} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: "pointer" }}>Next →</button>
+                  <button onClick={() => setCurrentQuestion(c => c + 1)} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: isMobile ? "10px 18px" : "14px 28px", borderRadius: 10, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Next →</button>
                 )}
               </div>
             </div>
