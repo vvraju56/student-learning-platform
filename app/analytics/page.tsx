@@ -107,7 +107,7 @@ export default function AnalyticsPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
-        <VideoAnalyticsDashboard />
+        <VideoAnalyticsDashboard userId={user?.uid} />
 
         {/* Info Section */}
         <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">

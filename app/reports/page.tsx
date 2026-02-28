@@ -3,10 +3,13 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useRealtimeAnalytics, type AnalyticsData, type CourseAnalytics } from "@/hooks/use-realtime-analytics"
+import { useRealTimeCourseAnalytics, useRealTimeVideoAnalytics } from "@/hooks/use-real-time-analytics"
+import { PerVideoProgressCard, VideoProgressGrid } from "@/components/per-video-progress-card"
+import { courses } from "@/lib/courses-data"
 import { 
   Clock, TrendingUp, Eye, AlertTriangle, Activity, 
   Monitor, Smartphone, Gamepad2, CheckCircle, XCircle,
-  Play, Pause, Wifi, WifiOff, RefreshCw
+  Play, Pause, Wifi, WifiOff, RefreshCw, Video, ChevronDown
 } from "lucide-react"
 import { auth } from "@/lib/firebase"
 
@@ -122,6 +125,65 @@ function CourseCard({
           </div>
         )}
       </CardContent>
+    </Card>
+  )
+}
+
+function ExpandableCourseSection({ 
+  courseTitle,
+  courseId,
+  icon,
+  videoData 
+}: { 
+  courseTitle: string
+  courseId: string
+  icon: React.ReactNode
+  videoData: Array<{
+    videoId: string
+    title: string
+    progress: number
+    watchTime: number
+    duration: number
+    violations: {
+      tabSwitches: number
+      faceMissingEvents: number
+      autoPauses: number
+      skipCount: number
+    }
+    lastSyncTime: number
+  }>
+}) {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const completedCount = videoData.filter(v => v.progress >= 100).length
+  const avgProgress = videoData.length > 0 
+    ? Math.round(videoData.reduce((sum, v) => sum + v.progress, 0) / videoData.length)
+    : 0
+  
+  return (
+    <Card className="bg-gray-900/30 border-gray-800 overflow-hidden">
+      <div 
+        className="p-4 cursor-pointer hover:bg-gray-900/50 transition-colors flex items-center justify-between"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-3 flex-1">
+          {icon}
+          <div className="flex-1">
+            <h3 className="font-semibold text-gray-100">{courseTitle}</h3>
+            <p className="text-xs text-gray-500">
+              {completedCount}/{videoData.length} videos completed • Avg {avgProgress}%
+            </p>
+          </div>
+        </div>
+        <ChevronDown 
+          className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+        />
+      </div>
+      
+      {isExpanded && (
+        <div className="border-t border-gray-800 p-4 bg-gray-950/50">
+          <VideoProgressGrid videos={videoData} />
+        </div>
+      )}
     </Card>
   )
 }
@@ -314,6 +376,10 @@ export default function ReportsPage() {
   } = useRealtimeAnalytics()
 
   const [userName, setUserName] = useState("Student")
+  const [userId, setUserId] = useState<string | undefined>()
+  
+  // Real-time video analytics
+  const { videoAnalytics, isLoading: videosLoading } = useRealTimeVideoAnalytics(userId)
 
   useEffect(() => {
     const user = auth.currentUser
@@ -322,7 +388,42 @@ export default function ReportsPage() {
     } else if (user?.email) {
       setUserName(user.email.split("@")[0])
     }
+    if (user?.uid) {
+      setUserId(user.uid)
+    }
   }, [])
+  
+  // Group video analytics by course
+  const videosByCoarse = videoAnalytics.reduce((acc, video) => {
+    if (!acc[video.courseId]) {
+      acc[video.courseId] = []
+    }
+    acc[video.courseId].push({
+      videoId: video.videoId,
+      title: courses
+        .find(c => c.id === video.courseId)
+        ?.modules[0]?.videos.find(v => v.id === video.videoId)?.title || `Video ${video.videoId}`,
+      progress: video.progress,
+      watchTime: video.watchTime,
+      duration: video.duration,
+      violations: video.violations,
+      lastSyncTime: video.lastSyncTime
+    })
+    return acc
+  }, {} as Record<string, Array<{
+    videoId: string
+    title: string
+    progress: number
+    watchTime: number
+    duration: number
+    violations: {
+      tabSwitches: number
+      faceMissingEvents: number
+      autoPauses: number
+      skipCount: number
+    }
+    lastSyncTime: number
+  }>>)
 
   if (isLoading) {
     return (
@@ -476,6 +577,51 @@ export default function ReportsPage() {
               icon={<Gamepad2 className="w-5 h-5 text-green-400" />}
             />
           </div>
+        </div>
+
+        {/* Per-Video Progress */}
+        <div className="mb-8">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Video className="w-5 h-5 text-purple-400" />
+            Video-by-Video Progress
+            <span className="text-xs text-gray-500 font-normal">(Click to expand)</span>
+          </h2>
+          
+          {videosLoading ? (
+            <div className="text-center py-8 text-gray-400">
+              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-blue-400" />
+              <p className="text-sm">Loading video analytics...</p>
+            </div>
+          ) : videoAnalytics.length === 0 ? (
+            <Card className="bg-gray-900/50 border-gray-800">
+              <CardContent className="py-8 text-center">
+                <p className="text-gray-400">No video progress data yet. Start watching videos to see detailed analytics here.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-6">
+              {Object.entries(videosByCoarse).map(([courseId, videos]) => {
+                const courseData = courses.find(c => c.id === courseId)
+                const courseTitle = courseData?.title || courseId
+                
+                const iconMap: Record<string, React.ReactNode> = {
+                  "web-development": <Monitor className="w-5 h-5 text-blue-400" />,
+                  "app-development": <Smartphone className="w-5 h-5 text-purple-400" />,
+                  "game-development": <Gamepad2 className="w-5 h-5 text-green-400" />
+                }
+                
+                return (
+                  <ExpandableCourseSection
+                    key={courseId}
+                    courseTitle={courseTitle}
+                    courseId={courseId}
+                    icon={iconMap[courseId] || <Video className="w-5 h-5 text-gray-400" />}
+                    videoData={videos}
+                  />
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* Focus Analytics & Session Timeline */}

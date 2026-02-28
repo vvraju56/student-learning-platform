@@ -22,22 +22,12 @@ const BootstrapBadge = dynamic(() => import('react-bootstrap/Badge'), {
   loading: () => <span className="badge">Loading...</span>
 })
 
-// Dynamic import for validation hook
-const useVideoValidation = (() => {
-  let hook: any = null;
-  return () => {
-    if (!hook) {
-      hook = require("../hooks/use-focus-aware-controls").useVideoValidation;
-    }
-    return hook();
-  };
-})();
-
 import { 
   Play, Pause, SkipForward, SkipBack, Volume2, Maximize2, 
   ArrowLeft, AlertTriangle, Eye, EyeOff, Activity, Clock
 } from "lucide-react"
 import { videoSyncService } from "@/services/video-sync-service"
+import { useVideoValidation } from "@/hooks/use-video-validation"
 
 interface VideoPlayerPageProps {
   user: any
@@ -68,18 +58,16 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
   const videoKeyRef = useRef<string>(`${courseId}_${videoId}`)
   const watchTimeRef = useRef<number>(0)
   
-  // Get validation state early
-  const { 
-    validationState = {
-      watchTime: 0,
-      violations: { tabSwitches: 0, faceMissingEvents: 0, autoPauses: 0, skipCount: 0 },
-      isValid: false
-    }, 
-    validateVideoCompletion = () => ({ isValid: false }), 
-    updateWatchTime = () => {}, 
-    setVideoDuration = () => {},
-    addViolation = () => {} 
-  } = (typeof window !== 'undefined' && require("../hooks/use-focus-aware-controls").useVideoValidation?.()) || {}
+  // Get validation state
+  const { state: validationState = {
+    watchTime: 0,
+    totalDuration: 0,
+    violations: { tabSwitches: 0, faceMissingEvents: 0, autoPauses: 0, skipCount: 0, skippedTime: 0 },
+    isValid: false,
+    isCompleted: false,
+    completionPercentage: 0,
+    isVideoPlaying: false
+  }, startVideoValidation = () => {}, addViolation = () => {} } = useVideoValidation(user?.uid || "")
   
   
   useEffect(() => {
@@ -165,8 +153,9 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
       url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
     }
     setVideo(mockVideo)
-    setVideoDuration(mockVideo.duration)
-  }, [courseId, videoId])
+    // Start validation with video duration
+    startVideoValidation(mockVideo.duration)
+  }, [courseId, videoId, startVideoValidation])
 
   // Video event handlers
   const handlePlay = () => {
@@ -187,7 +176,7 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
     if (videoRef.current) {
       const time = videoRef.current.currentTime
       setCurrentTime(time)
-      updateWatchTime(time)
+      // Watch time is tracked via watchTimeRef automatically
     }
   }
 
@@ -229,9 +218,7 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
 
   const handleBackToVideos = () => {
     // Save progress before leaving
-    if (validateVideoCompletion().isValid) {
-      // Save to Firebase
-    }
+    // Validation is automatically tracked by the validation hook
     router.push(`/course/${courseId}/videos`)
   }
 
@@ -350,7 +337,7 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
                         cursor: 'pointer'
                       }}
                       variant="primary"
-                      onClick={(e) => {
+                      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
                         const rect = e.currentTarget.getBoundingClientRect()
                         const clickX = e.clientX - rect.left
                         const percentage = clickX / rect.width

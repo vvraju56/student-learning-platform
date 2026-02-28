@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { videoSyncService } from "@/services/video-sync-service"
-import { TrendingUp, Clock, Activity, CheckCircle, BookOpen } from "lucide-react"
+import { useRealTimeCourseAnalytics, useRealTimeVideoAnalytics } from "@/hooks/use-real-time-analytics"
+import { TrendingUp, Clock, Activity, CheckCircle, BookOpen, Zap } from "lucide-react"
 
 interface CourseProgress {
   courseId: string
@@ -19,7 +20,11 @@ interface DashboardStats {
   lastSyncTime: number
 }
 
-export function VideoAnalyticsDashboard() {
+interface VideoAnalyticsDashboardProps {
+  userId?: string
+}
+
+export function VideoAnalyticsDashboard({ userId }: VideoAnalyticsDashboardProps) {
   const [stats, setStats] = useState<DashboardStats>({
     totalVideosTracked: 0,
     averageProgress: 0,
@@ -39,6 +44,72 @@ export function VideoAnalyticsDashboard() {
 
   const [courseProgress, setCourseProgress] = useState<CourseProgress[]>([])
   const [overallProgress, setOverallProgress] = useState(0)
+  const [isLoadingCourses, setIsLoadingCourses] = useState(false)
+
+  // Real-time Firebase listeners
+  const { courseProgress: realTimeCourses, overallProgress: realTimeOverall, isLoading: isLoadingRealTime } = useRealTimeCourseAnalytics(userId)
+  const { videoAnalytics: realTimeVideos } = useRealTimeVideoAnalytics(userId)
+
+  // Update course progress from real-time data
+  useEffect(() => {
+    if (realTimeCourses.length > 0) {
+      setCourseProgress(
+        realTimeCourses.map((course) => ({
+          courseId: course.courseId,
+          courseName: formatCourseName(course.courseId),
+          totalVideos: course.totalVideos,
+          completedVideos: course.completedVideos,
+          progress: course.progress
+        }))
+      )
+    }
+  }, [realTimeCourses])
+
+  // Update overall progress from real-time data
+  useEffect(() => {
+    if (realTimeOverall) {
+      setOverallProgress(realTimeOverall.progress)
+    }
+  }, [realTimeOverall])
+
+  // Update video analytics from real-time data
+  useEffect(() => {
+    if (realTimeVideos.length > 0) {
+      setCourseAnalytics(realTimeVideos)
+    }
+  }, [realTimeVideos])
+
+  // Fallback: Fetch course progress from Firebase on mount if no real-time data
+  useEffect(() => {
+    if (!userId || realTimeCourses.length > 0) return
+
+    const fetchCourseProgress = async () => {
+      setIsLoadingCourses(true)
+      try {
+        const courses = await videoSyncService.getAllCoursesProgress(userId)
+        if (courses.length > 0) {
+          setCourseProgress(
+            courses.map((course) => ({
+              courseId: course.courseId,
+              courseName: formatCourseName(course.courseId),
+              totalVideos: course.totalVideos,
+              completedVideos: course.completedVideos,
+              progress: course.progress
+            }))
+          )
+        }
+
+        const overall = await videoSyncService.getOverallProgress(userId)
+        setOverallProgress(overall)
+      } catch (error) {
+        console.error("Error fetching course progress:", error)
+      } finally {
+        setIsLoadingCourses(false)
+      }
+    }
+
+    fetchCourseProgress()
+  }, [userId, realTimeCourses.length])
 
   // Update dashboard every 10 seconds (lightweight local updates)
   useEffect(() => {
@@ -67,16 +138,36 @@ export function VideoAnalyticsDashboard() {
     return date.toLocaleTimeString()
   }
 
+  const formatCourseName = (courseId: string): string => {
+    const names: { [key: string]: string } = {
+      "web-development": "Web Development",
+      "app-development": "App Development",
+      "game-development": "Game Development"
+    }
+    return names[courseId] || courseId
+  }
+
   return (
     <div className="p-6 bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg border border-gray-700">
       {/* Header */}
       <div className="mb-8">
-        <h2 className="text-2xl font-bold text-white mb-2">
-          Learning Analytics Dashboard
-        </h2>
-        <p className="text-gray-400 text-sm">
-          Real-time sync • Last update: {formatLastSync(stats.lastSyncTime)}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-2">
+              Learning Analytics Dashboard
+            </h2>
+            <p className="text-gray-400 text-sm flex items-center gap-2">
+              {!isLoadingRealTime && userId ? (
+                <>
+                  <Zap className="w-4 h-4 text-yellow-500 animate-pulse" />
+                  Real-time sync active
+                </>
+              ) : (
+                <>Real-time sync • Last update: {formatLastSync(stats.lastSyncTime)}</>
+              )}
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Summary Cards */}

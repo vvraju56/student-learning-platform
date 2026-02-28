@@ -12,6 +12,7 @@ import {
 } from "lucide-react"
 import { MonitoringProvider, useMonitoring } from "../contexts/monitoring-context"
 import { FirebaseProgressManager } from "../lib/firebase-progress"
+import { videoSyncService } from "../services/video-sync-service"
 import { courses } from "../lib/courses-data"
 
 interface SmartDashboardProps {
@@ -70,13 +71,29 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
         isFirstLoad.current = false
       }
       try {
-        // First try to load from Firebase
-        const userProgress = await Promise.race([
-          firebaseManager.getUserProgress(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-        ]).catch(() => null)
+        // Try loading from new videoSyncService (Firebase)
+        let coursesProgressData: any = {}
         
-        const fetchedCoursesData = (userProgress as any)?.courses || {};
+        try {
+          const allCoursesProgress = await videoSyncService.getAllCoursesProgress(user?.uid || "")
+          
+          // Convert to the format needed
+          allCoursesProgress.forEach((courseData: any) => {
+            coursesProgressData[courseData.courseId] = courseData
+          })
+        } catch (e) {
+          console.log("Could not load from videoSyncService, using fallback")
+        }
+        
+        // Fallback to old Firebase manager if needed
+        if (Object.keys(coursesProgressData).length === 0) {
+          const userProgress = await Promise.race([
+            firebaseManager.getUserProgress(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+          ]).catch(() => null)
+          
+          coursesProgressData = (userProgress as any)?.courses || {}
+        }
         
         const newCourseProgress: {[key: string]: {progress: number, completedVideos: number, totalVideos: number}} = {}
         let totalProgressSum = 0
@@ -89,7 +106,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
           const totalVideosInCourse = courseModules.videos.length;
 
           // Check Firebase first, then fall back to localStorage
-          let progressData = fetchedCoursesData[courseId] || {};
+          let progressData = coursesProgressData[courseId] || {};
           let completedVideos = progressData.completedVideos || 0;
           
           // If Firebase has no progress, check localStorage

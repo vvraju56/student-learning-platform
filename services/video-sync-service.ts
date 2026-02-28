@@ -240,6 +240,93 @@ export class VideoSyncService {
         : 0
     }
   }
+
+  /**
+   * Get course progress from Firebase (reads from DB)
+   * Returns course metadata and completion stats
+   */
+  async getCourseProgress(userId: string, courseId: string): Promise<{
+    courseId: string
+    totalVideos: number
+    completedVideos: number
+    progress: number
+  } | null> {
+    if (!realtimeDb) return null
+
+    try {
+      const courseRef = ref(realtimeDb, `users/${userId}/courses/${courseId}`)
+      const snapshot = await get(courseRef)
+
+      if (!snapshot.exists()) {
+        return null
+      }
+
+      const data = snapshot.val()
+      return {
+        courseId,
+        totalVideos: data.totalVideos || 0,
+        completedVideos: data.completedVideos || 0,
+        progress: data.progress || 0
+      }
+    } catch (error) {
+      console.error(`Error reading course progress for ${courseId}:`, error)
+      return null
+    }
+  }
+
+  /**
+   * Get all courses progress from Firebase
+   */
+  async getAllCoursesProgress(userId: string): Promise<Array<{
+    courseId: string
+    totalVideos: number
+    completedVideos: number
+    progress: number
+  }>> {
+    if (!realtimeDb) return []
+
+    try {
+      const coursesRef = ref(realtimeDb, `users/${userId}/courses`)
+      const snapshot = await get(coursesRef)
+
+      if (!snapshot.exists()) {
+        return []
+      }
+
+      const data = snapshot.val()
+      return Object.entries(data).map(([courseId, courseData]: [string, any]) => ({
+        courseId,
+        totalVideos: courseData.totalVideos || 0,
+        completedVideos: courseData.completedVideos || 0,
+        progress: courseData.progress || 0
+      }))
+    } catch (error) {
+      console.error(`Error reading all courses progress:`, error)
+      return []
+    }
+  }
+
+  /**
+   * Get overall progress from Firebase
+   */
+  async getOverallProgress(userId: string): Promise<number> {
+    if (!realtimeDb) return 0
+
+    try {
+      const overallRef = ref(realtimeDb, `users/${userId}/overall`)
+      const snapshot = await get(overallRef)
+
+      if (!snapshot.exists()) {
+        return 0
+      }
+
+      const data = snapshot.val()
+      return data.progress || 0
+    } catch (error) {
+      console.error(`Error reading overall progress:`, error)
+      return 0
+    }
+  }
 }
 
 export const videoSyncService = new VideoSyncService()
