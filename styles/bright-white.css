@@ -1,0 +1,73 @@
+/* Make all text bright white on dark background */
+.text-white {
+  color: #ffffff !important;
+}
+
+.text-muted {
+  color: #ffffff !important;
+}
+
+.text-white small,
+.text-muted small,
+.text-white .small,
+.text-muted .small {
+  color: #ffffff !important;
+}
+
+.text-white h1,
+.text-white h2,
+.text-white h3,
+.text-white h4,
+.text-white h5,
+.text-white h6,
+.text-white .h1,
+.text-white .h2,
+.text-white .h3,
+.text-white .h4,
+.text-white .h5,
+.text-white .h6 {
+  color: #ffffff !important;
+}
+
+.text-white .fw-bold,
+.text-white .fw-semibold,
+.text-white .fw-medium {
+  color: #ffffff !important;
+}
+
+/* Badge text */
+.badge {
+  color: #ffffff !important;
+}
+
+/* Button text */
+.btn {
+  color: #ffffff !important;
+}
+
+/* Card titles and content */
+.card h1,
+.card h2,
+.card h3,
+.card h4,
+.card h5,
+.card h6,
+.card .h1,
+.card .h2,
+.card .h3,
+.card .h4,
+.card .h5,
+.card .h6 {
+  color: #ffffff !important;
+}
+
+.card p,
+.card span,
+.card div {
+  color: #ffffff !important;
+}
+
+/* Ensure all text elements are white */
+p, span, div, h1, h2, h3, h4, h5, h6, label, input {
+  color: #ffffff !important;
+}
