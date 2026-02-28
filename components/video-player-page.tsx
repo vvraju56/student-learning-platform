@@ -37,6 +37,7 @@ import {
   Play, Pause, SkipForward, SkipBack, Volume2, Maximize2, 
   ArrowLeft, AlertTriangle, Eye, EyeOff, Activity, Clock
 } from "lucide-react"
+import { videoSyncService } from "@/services/video-sync-service"
 
 interface VideoPlayerPageProps {
   user: any
@@ -61,6 +62,26 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
   const [ProgressBar, setProgressBar] = useState<any>(null)
   const [Badge, setBadge] = useState<any>(null)
   
+  // Video sync state
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced'>('idle')
+  const [lastSyncTime, setLastSyncTime] = useState<number>(0)
+  const videoKeyRef = useRef<string>(`${courseId}_${videoId}`)
+  const watchTimeRef = useRef<number>(0)
+  
+  // Get validation state early
+  const { 
+    validationState = {
+      watchTime: 0,
+      violations: { tabSwitches: 0, faceMissingEvents: 0, autoPauses: 0, skipCount: 0 },
+      isValid: false
+    }, 
+    validateVideoCompletion = () => ({ isValid: false }), 
+    updateWatchTime = () => {}, 
+    setVideoDuration = () => {},
+    addViolation = () => {} 
+  } = (typeof window !== 'undefined' && require("../hooks/use-focus-aware-controls").useVideoValidation?.()) || {}
+  
+  
   useEffect(() => {
     // Dynamically import Bootstrap components
     Promise.all([
@@ -76,17 +97,63 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
     })
   }, [])
   
-  const { 
-    validationState = {
-      watchTime: 0,
-      violations: { tabSwitches: 0, faceMissingEvents: 0, autoPauses: 0, skipCount: 0 },
-      isValid: false
-    }, 
-    validateVideoCompletion = () => ({ isValid: false }), 
-    updateWatchTime = () => {}, 
-    setVideoDuration = () => {},
-    addViolation = () => {} 
-  } = validationHook || {}
+  // Setup video progress sync every 5 minutes
+  useEffect(() => {
+    if (!user?.uid) return
+    
+    const videoKey = videoKeyRef.current
+    
+    // Start sync with 5-minute interval
+    videoSyncService.startSync(
+      videoKey,
+      user.uid,
+      courseId,
+      videoId,
+      async (data) => {
+        setSyncStatus('syncing')
+        try {
+          // Simulate sync delay
+          await new Promise(resolve => setTimeout(resolve, 500))
+          setLastSyncTime(Date.now())
+          setSyncStatus('synced')
+          console.log('✅ Video progress synced to Firebase')
+          
+          // Reset status after 3 seconds
+          setTimeout(() => setSyncStatus('idle'), 3000)
+        } catch (error) {
+          console.error('Error syncing video progress:', error)
+          setSyncStatus('idle')
+        }
+      }
+    )
+    
+    // Cleanup on unmount
+    return () => {
+      videoSyncService.stopSync(videoKey)
+      videoSyncService.cleanup()
+    }
+  }, [user?.uid, courseId, videoId])
+  
+  // Update pending sync data on video progress change
+  useEffect(() => {
+    const videoKey = videoKeyRef.current
+    
+    videoSyncService.updatePendingData(videoKey, {
+      courseId,
+      videoId,
+      userId: user?.uid || '',
+      currentTime,
+      duration,
+      isPlaying,
+      watchTime: watchTimeRef.current,
+      violations: validationState.violations
+    })
+  }, [currentTime, duration, isPlaying, courseId, videoId, validationState.violations, user?.uid])
+  
+  // Track watch time
+  useEffect(() => {
+    watchTimeRef.current += currentTime
+  }, [currentTime])
 
   // Mock video data
   useEffect(() => {
