@@ -397,7 +397,6 @@ export default function LecturePage() {
           <div>
             <h1 className="text-xl font-bold">{course.title}</h1>
             <p className="text-gray-400 text-sm">Module 1: {currentVideo?.title || 'Loading...'}</p>
-            <p className="text-yellow-400 text-xs mt-1">👆 Click 3 times to play video</p>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-sm text-gray-400">
