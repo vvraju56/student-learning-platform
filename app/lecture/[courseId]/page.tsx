@@ -147,8 +147,10 @@ export default function LecturePage() {
     setTimeLimitReached(false)
   }, [courseId, currentVideoIndex])
 
-  // Tab visibility and window focus detection
+  // Tab visibility and window focus detection with grace period
   useEffect(() => {
+    let blurTimeout: NodeJS.Timeout | null = null
+    
     const handleVisibilityChange = () => {
       const isVisible = !document.hidden
       setTabVisible(isVisible)
@@ -156,11 +158,16 @@ export default function LecturePage() {
     }
 
     const handleWindowBlur = () => {
-      console.log("🔴 Window lost focus - user switched apps")
-      setTabVisible(false)
+      if (blurTimeout) clearTimeout(blurTimeout)
+      blurTimeout = setTimeout(() => {
+        console.log("🔴 Window lost focus - user switched apps")
+        setTabVisible(false)
+      }, 1000)
     }
 
     const handleWindowFocus = () => {
+      if (blurTimeout) clearTimeout(blurTimeout)
+      blurTimeout = null
       console.log("🟢 Window gained focus")
       setTabVisible(true)
     }
@@ -173,6 +180,7 @@ export default function LecturePage() {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("blur", handleWindowBlur)
       window.removeEventListener("focus", handleWindowFocus)
+      if (blurTimeout) clearTimeout(blurTimeout)
     }
   }, [])
 
