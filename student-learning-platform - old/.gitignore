@@ -1,0 +1,40 @@
+# Node
+node_modules/
+
+# Next.js / React
+.next/
+out/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Firebase
+.firebase/
+.firebase-cache/
+firebase-debug.log
+firestore-debug.log
+
+# AI / ML Models
+public/models/
+public/tf-models/
+
+# Logs
+*.log
+
+# Video files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+public/App Development/
+public/Game Development/
+public/Web development/
+
+# OS
+.DS_Store
+Thumbs.db

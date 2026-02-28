@@ -1,0 +1,1183 @@
+"use client"
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+
+// Type definitions
+interface User {
+  uid: string
+  email: string
+  displayName?: string
+}
+
+interface Profile {
+  name?: string
+  role?: string
+}
+
+interface VideoProgress {
+  video_id: string
+  watch_time: number
+  completed: boolean
+}
+
+interface SessionData {
+  totalSessions: number
+  totalTime: number
+  recentSessions: any[]
+}
+
+interface CourseProgress {
+  webDevelopment: number
+  appDevelopment: number
+  gameDevelopment: number
+  overall: number
+}
+
+interface CourseData {
+  id: string
+  title: string
+  progress: number
+  completedVideos: number
+  totalVideos: number
+  currentVideoProgress: number
+}
+
+interface StudentDashboardProps {
+  user: User
+  profile: Profile | null
+  videoProgress: VideoProgress[]
+  sessionData: SessionData | null
+  courseProgress: CourseProgress
+  handleLogout: () => void
+  firebaseProgress?: any
+}
+
+export function StudentDashboard({ 
+  user, 
+  profile, 
+  videoProgress, 
+  sessionData, 
+  courseProgress, 
+  handleLogout,
+  firebaseProgress
+}: StudentDashboardProps) {
+  const router = useRouter()
+  const [monitoring, setMonitoring] = useState({
+    isActive: false,
+    cameraOn: false,
+    postureStatus: 'Good posture',
+    attentionStatus: 'Focused'
+  })
+
+  // Focus-aware progress control
+  const [focusState, setFocusState] = useState({
+    isFocused: true,
+    tabActive: true,
+    faceDetected: true,
+    videoPlaying: false
+  })
+
+  // Enhanced monitoring states
+  const [monitoringStatus, setMonitoringStatus] = useState({
+    posture: 'Good Posture',
+    attention: 'Focused',
+    faceDetection: 'Detected',
+    monitoringActive: false
+  })
+
+  // Real-time alerts and activity
+  const [alerts, setAlerts] = useState([
+    { id: 1, type: 'info', message: 'System initialized', timestamp: new Date() }
+  ])
+
+  // Add new alert
+  const addAlert = (type: string, message: string) => {
+    const newAlert = {
+      id: Date.now(),
+      type,
+      message,
+      timestamp: new Date()
+    }
+    setAlerts(prev => [newAlert, ...prev.slice(0, 4)]) // Keep last 5 alerts
+  }
+  
+  // Enhanced course data with detailed progress tracking
+  const [courses, setCourses] = useState({
+    'web-dev': { 
+      id: 'web-dev',
+      progress: courseProgress.webDevelopment, 
+      title: 'Web Development',
+      completedVideos: 0,
+      totalVideos: 10,
+      currentVideoProgress: 0,
+      lastWatchedVideo: null,
+      lastPosition: 0
+    },
+    'android-dev': { 
+      id: 'android-dev',
+      progress: courseProgress.appDevelopment, 
+      title: 'App Development',
+      completedVideos: 0,
+      totalVideos: 10,
+      currentVideoProgress: 0,
+      lastWatchedVideo: null,
+      lastPosition: 0
+    },
+    'game-dev': { 
+      id: 'game-dev',
+      progress: courseProgress.gameDevelopment, 
+      title: 'Game Development',
+      completedVideos: 0,
+      totalVideos: 10,
+      currentVideoProgress: 0,
+      lastWatchedVideo: null,
+      lastPosition: 0
+    }
+  })
+
+  // Continue Learning modal state
+  const [showContinueModal, setShowContinueModal] = useState(false)
+
+  // Calculate detailed course progress from localStorage (real-time)
+  const calculateDetailedProgress = (uid: string) => {
+    const updatedCourses = { ...courses }
+    
+    Object.keys(updatedCourses).forEach(courseId => {
+      const course = updatedCourses[courseId as keyof typeof updatedCourses]
+      
+      // Get all video progress for this course from localStorage
+      if (typeof window !== 'undefined') {
+        const videoProgressKeys = Object.keys(localStorage).filter(key => 
+          key.includes(`video_progress_${courseId}_${uid}`)
+        )
+        
+        let completedVideos = 0
+        let totalPartialProgress = 0
+        let lastWatchedVideo: any = null
+        let lastPosition = 0
+        let lastWatchTime = 0
+        
+        videoProgressKeys.forEach(key => {
+          try {
+            const data = JSON.parse(localStorage.getItem(key) || '{}')
+            if (data.completed) {
+              completedVideos += 1
+            } else {
+              // Calculate partial progress based on valid watch time
+              const videoProgress = (data.validWatchTime || 0) / (data.totalDuration || 1)
+              totalPartialProgress += Math.min(videoProgress, 0.99) // Cap at 99% for incomplete
+            }
+            
+            // Track most recently watched video
+            if (data.lastWatchTime && data.lastWatchTime > lastWatchTime) {
+              lastWatchedVideo = {
+                id: data.video_id || key,
+                title: data.videoTitle || `Video ${key.split('_').pop()}`,
+                courseId: courseId,
+                lastPosition: data.lastPosition || 0,
+                duration: data.totalDuration || 0,
+                completed: data.completed || false,
+                thumbnail: data.thumbnail || ''
+              }
+              lastPosition = data.lastPosition || 0
+              lastWatchTime = data.lastWatchTime
+            }
+          } catch (e) {
+            // Skip invalid data
+          }
+        })
+        
+        // Update course data
+        course.completedVideos = completedVideos
+        course.progress = Math.round(((completedVideos + totalPartialProgress) / course.totalVideos) * 100)
+        course.currentVideoProgress = totalPartialProgress
+        course.lastWatchedVideo = lastWatchedVideo
+        course.lastPosition = lastPosition
+      }
+    })
+    
+    setCourses(updatedCourses)
+  }
+
+
+  // Get all recent videos for continue learning
+  const getRecentVideos = () => {
+    if (!user) return []
+    
+    const recentVideos = []
+    if (typeof window !== 'undefined') {
+      Object.values(courses).forEach(course => {
+        if (course.lastWatchedVideo) {
+          recentVideos.push(course.lastWatchedVideo)
+        }
+      })
+    }
+    
+    return recentVideos.sort((a, b) => (b?.id || '').localeCompare(a?.id || '')).slice(0, 6)
+  }
+
+  // Continue learning function
+  const handleContinueLearning = () => {
+    // First try Firebase continue learning data
+    if (firebaseProgress && firebaseProgress.current) {
+      const currentData = firebaseProgress.current
+      router.push(`/courses/${currentData.courseId}?video=${currentData.videoId}&time=${currentData.lastWatchedTime}`)
+      return
+    }
+    
+    // Fallback to localStorage recent videos
+    const recentVideos = getRecentVideos()
+    if (recentVideos.length > 0) {
+      // Navigate to the most recently watched video
+      const latestVideo = recentVideos[0]
+      router.push(`/courses/${latestVideo.courseId}?video=${latestVideo.id}&time=${latestVideo.lastPosition}`)
+    } else {
+      // If no recent videos, go to courses page
+      router.push('/courses')
+    }
+  }
+
+
+  // Real-time progress updates with focus awareness
+  useEffect(() => {
+    if (user) {
+      calculateDetailedProgress(user.uid)
+      
+      // Update progress every 2 seconds only when focused
+      const progressInterval = setInterval(() => {
+        if (focusState.isFocused && focusState.tabActive && focusState.faceDetected) {
+          calculateDetailedProgress(user.uid)
+        }
+      }, 2000)
+
+      return () => clearInterval(progressInterval)
+    }
+  }, [user, focusState])
+
+  // Comprehensive focus-aware event listeners
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isTabActive = !document.hidden
+      const isFocused = !document.hidden && document.hasFocus()
+      
+      setFocusState(prev => ({
+        ...prev,
+        tabActive: isTabActive,
+        isFocused
+      }))
+      
+      if (document.hidden) {
+        addAlert('warning', '⚠️ Tab switched – video paused')
+      }
+    }
+
+    const handleFocus = () => {
+      setFocusState(prev => ({
+        ...prev,
+        isFocused: true
+      }))
+      setMonitoringStatus(prev => ({
+        ...prev,
+        attention: 'Focused'
+      }))
+      addAlert('success', '✅ Window focused – progress resumed')
+    }
+
+    const handleBlur = () => {
+      setFocusState(prev => ({
+        ...prev,
+        isFocused: false
+      }))
+      setMonitoringStatus(prev => ({
+        ...prev,
+        attention: 'Distracted'
+      }))
+      addAlert('warning', '⚠️ Focus lost – attention diverted')
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('blur', handleBlur)
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('blur', handleBlur)
+    }
+  }, [])
+
+  // Enhanced monitoring simulation
+  useEffect(() => {
+    if (monitoring.isActive) {
+      const monitoringInterval = setInterval(() => {
+        // Face detection (90% success rate)
+        const faceDetected = Math.random() > 0.1
+        setFocusState(prev => ({ ...prev, faceDetected }))
+        setMonitoringStatus(prev => ({ 
+          ...prev, 
+          faceDetection: faceDetected ? 'Detected' : 'Not Detected' 
+        }))
+        
+        if (!faceDetected) {
+          addAlert('error', '❌ Face not detected – attention lost')
+        }
+
+        // Posture monitoring (85% good posture rate)
+        const goodPosture = Math.random() > 0.15
+        setMonitoringStatus(prev => ({
+          ...prev,
+          posture: goodPosture ? 'Good Posture' : Math.random() > 0.5 ? 'Leaning Forward' : 'Slouching'
+        }))
+
+        if (!goodPosture) {
+          addAlert('warning', '⚠️ Posture issue detected')
+        }
+
+        // Overall monitoring status
+        setMonitoringStatus(prev => ({
+          ...prev,
+          monitoringActive: focusState.isFocused && faceDetected
+        }))
+
+      }, 3000)
+
+      return () => clearInterval(monitoringInterval)
+    }
+  }, [monitoring.isActive, focusState.isFocused])
+  
+  const [quizzes, setQuizzes] = useState({
+    'web-dev': { available: courseProgress.webDevelopment >= 25, completed: false },
+    'android-dev': { available: courseProgress.appDevelopment >= 25, completed: false },
+    'game-dev': { available: courseProgress.gameDevelopment >= 25, completed: false }
+  })
+
+  // Navigation functions
+  const navigateTo = (section: string) => {
+    switch(section) {
+      case 'video-courses':
+        router.push('/courses')
+        break
+      case 'study-materials':
+        router.push('/materials')
+        break
+      case 'profile':
+        router.push('/profile')
+        break
+      case 'reports':
+        router.push('/reports')
+        break
+    }
+  }
+
+  // Course continuation
+  const continueCourse = (courseId: string) => {
+    const course = courses[courseId as keyof typeof courses]
+    router.push(`/courses/${courseId}`)
+  }
+
+  // Monitoring functions
+  const toggleMonitoring = () => {
+    setMonitoring(prev => {
+      const newActive = !prev.isActive
+      if (newActive) {
+        // Start monitoring simulation
+        console.log('Starting AI monitoring...')
+      } else {
+        console.log('Stopping AI monitoring...')
+      }
+      return {
+        ...prev,
+        isActive: newActive,
+        cameraOn: newActive
+      }
+    })
+  }
+
+  // Quiz functions
+  const startQuiz = (quizId: string) => {
+    const quiz = quizzes[quizId as keyof typeof quizzes]
+    
+    if (!quiz.available) {
+      alert('This quiz is locked. Complete more course content to unlock it.')
+      return
+    }
+    
+    if (quiz.completed) {
+      alert('You have already completed this quiz.')
+      return
+    }
+    
+    const course = courses[quizId as keyof typeof courses]
+    alert(`Starting ${course.title} quiz...\n\nThis will test your knowledge of the course material.`)
+  }
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl/Cmd + M for monitoring toggle
+      if ((e.ctrlKey || e.metaKey) && e.key === 'm') {
+        e.preventDefault()
+        toggleMonitoring()
+      }
+      
+      // Escape to stop monitoring if active
+      if (e.key === 'Escape' && monitoring.isActive) {
+        toggleMonitoring()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [monitoring.isActive])
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black text-gray-100">
+      {/* Header Section */}
+      <header className="sticky top-0 z-50 bg-gray-900/90 backdrop-blur-lg border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <h1 className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+              Dashboard
+            </h1>
+            <div className="flex items-center gap-4">
+              <span className="text-gray-400 text-sm">
+                {user.email}
+              </span>
+              <button 
+                onClick={handleLogout}
+                className="flex items-center gap-2 px-4 py-2 text-sm text-red-400 bg-red-400/10 border border-red-400/30 rounded-lg hover:bg-red-400/20 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* REAL-TIME OVERALL PROGRESS DASHBOARD */}
+        <section className="mb-12">
+          <h2 className="text-2xl font-semibold text-white mb-8 text-center">
+            Real-Time Overall Progress Dashboard
+            <span className="block text-sm text-gray-400 mt-2 font-normal">
+              Course-wise Analysis Based • Live Updates
+            </span>
+          </h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Overall Progress Card */}
+            <div className="lg:col-span-1">
+              <div className="bg-gradient-to-br from-blue-600/20 to-purple-600/20 border border-blue-500/30 rounded-2xl p-8 backdrop-blur-sm">
+                <h3 className="text-lg font-semibold text-white mb-6 text-center">Overall Progress</h3>
+                
+                {/* Circular Progress */}
+                <div className="relative w-48 h-48 mx-auto mb-6">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle
+                      cx="96"
+                      cy="96"
+                      r="88"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="none"
+                      className="text-gray-700"
+                    />
+                    <circle
+                      cx="96"
+                      cy="96"
+                      r="88"
+                      stroke="currentColor"
+                      strokeWidth="8"
+                      fill="none"
+                      strokeDasharray={`${2 * Math.PI * 88}`}
+                      strokeDashoffset={`${2 * Math.PI * 88 * (1 - (courseProgress.overall / 100))}`}
+                      className="text-gradient-to-r from-blue-400 to-purple-400 transition-all duration-500"
+                      style={{
+                        stroke: 'url(#gradient)',
+                        filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))'
+                      }}
+                    />
+                    <defs>
+                      <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#60A5FA" />
+                        <stop offset="100%" stopColor="#A855F7" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-4xl font-bold text-white">{courseProgress.overall}%</span>
+                    <span className="text-sm text-gray-400">Overall</span>
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <p className="text-gray-300 text-sm mb-3">Combined learning progress across all courses</p>
+                  <div className="inline-flex items-center gap-3 px-3 py-1 bg-blue-900/30 rounded-full">
+                    <div className={`w-2 h-2 rounded-full ${
+                      focusState.isFocused && focusState.tabActive && focusState.faceDetected ? 
+                      'bg-green-400 animate-pulse' : 'bg-gray-400'
+                    }`}></div>
+                    <span className="text-xs text-blue-300">
+                      {focusState.isFocused && focusState.tabActive && focusState.faceDetected ? 'Tracking' : 'Frozen'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-3">
+                    {focusState.isFocused && focusState.tabActive && focusState.faceDetected ? 
+                    '✅ Progress actively counting' : 
+                    '⏸️ Progress paused - focus lost'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Course-wise Progress List */}
+            <div className="lg:col-span-2">
+              <div className="bg-gray-800/50 border border-gray-700/50 rounded-2xl p-8">
+                <h3 className="text-lg font-semibold text-white mb-6">Course-wise Progress</h3>
+                
+                <div className="space-y-6">
+                  {Object.values(courses).map((course) => (
+                    <div key={course.id} className="bg-gray-700/30 rounded-xl p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-3 h-3 rounded-full ${
+                            course.progress >= 75 ? 'bg-green-400' : 
+                            course.progress >= 50 ? 'bg-yellow-400' : 
+                            course.progress >= 25 ? 'bg-orange-400' : 'bg-red-400'
+                          }`}></div>
+                          <span className="text-white font-medium">{course.title}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-lg font-bold text-white">{course.progress}%</span>
+                          <span className="text-xs text-gray-400 ml-2">
+                            ({course.completedVideos}/{course.totalVideos} videos)
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className="bg-gray-600/50 rounded-full h-3 overflow-hidden">
+                        <div 
+                          className="h-full rounded-full transition-all duration-500 ease-out"
+                          style={{
+                            width: `${course.progress}%`,
+                            background: `linear-gradient(90deg, ${
+                              course.progress >= 75 ? '#10b981' : 
+                              course.progress >= 50 ? '#eab308' : 
+                              course.progress >= 25 ? '#f97316' : '#ef4444'
+                            } 0%, ${
+                              course.progress >= 75 ? '#34d399' : 
+                              course.progress >= 50 ? '#fde047' : 
+                              course.progress >= 25 ? '#fb923c' : '#f87171'
+                            } 100%)`
+                          }}
+                        ></div>
+                      </div>
+                      
+                      {/* Progress Details */}
+                      <div className="flex justify-between items-center mt-2 text-xs text-gray-400">
+                        <span>Valid watch time: {Math.round(course.currentVideoProgress * 100)}%</span>
+                        <span>
+                          {course.progress >= 75 ? 'Excellent' : 
+                           course.progress >= 50 ? 'Good' : 
+                           course.progress >= 25 ? 'In Progress' : 'Just Started'}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Formula info is now hidden from UI but logic remains active */}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Real-Time Alerts & Activity Indicators */}
+        <section className="mb-12">
+          <h2 className="text-xl font-semibold text-white mb-6">Alerts & Activity Indicators</h2>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Recent Alerts */}
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span className="w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></span>
+                Recent Alerts
+              </h3>
+              
+              <div className="space-y-3 max-h-64 overflow-y-auto">
+                {alerts.length === 0 ? (
+                  <p className="text-gray-400 text-sm text-center py-4">No recent alerts</p>
+                ) : (
+                  alerts.map(alert => (
+                    <div 
+                      key={alert.id} 
+                      className={`p-3 rounded-lg border-l-4 text-sm ${
+                        alert.type === 'error' ? 'bg-red-900/20 border-red-400 text-red-300' :
+                        alert.type === 'warning' ? 'bg-yellow-900/20 border-yellow-400 text-yellow-300' :
+                        alert.type === 'success' ? 'bg-green-900/20 border-green-400 text-green-300' :
+                        'bg-blue-900/20 border-blue-400 text-blue-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="flex-1">{alert.message}</span>
+                        <span className="text-xs opacity-70">
+                          {alert.timestamp.toLocaleTimeString()}
+                        </span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Monitoring Status */}
+            <div className="bg-gray-800/50 border border-gray-700/50 rounded-2xl p-6">
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+                <span className={`w-3 h-3 rounded-full ${
+                  monitoringStatus.monitoringActive ? 'bg-green-400 animate-pulse' : 'bg-gray-400'
+                }`}></span>
+                Monitoring Status
+              </h3>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Posture Status */}
+                  <div className="bg-gray-700/30 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-1">Posture</div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        monitoringStatus.posture.includes('Good') ? 'bg-green-400' :
+                        monitoringStatus.posture.includes('Leaning') ? 'bg-yellow-400' :
+                        'bg-orange-400'
+                      }`}></div>
+                      <span className="text-sm text-white font-medium">
+                        {monitoringStatus.posture}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Attention Status */}
+                  <div className="bg-gray-700/30 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-1">Attention</div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        monitoringStatus.attention === 'Focused' ? 'bg-blue-400' :
+                        monitoringStatus.attention === 'Distracted' ? 'bg-red-400' :
+                        'bg-yellow-400'
+                      }`}></div>
+                      <span className="text-sm text-white font-medium">
+                        {monitoringStatus.attention}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Face Detection */}
+                  <div className="bg-gray-700/30 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-1">Face Detection</div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        monitoringStatus.faceDetection === 'Detected' ? 'bg-green-400' : 'bg-red-400'
+                      }`}></div>
+                      <span className="text-sm text-white font-medium">
+                        {monitoringStatus.faceDetection}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Overall Monitoring */}
+                  <div className="bg-gray-700/30 rounded-xl p-3">
+                    <div className="text-xs text-gray-400 mb-1">Overall Status</div>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2 h-2 rounded-full ${
+                        monitoringStatus.monitoringActive ? 'bg-green-400' : 'bg-gray-400'
+                      }`}></div>
+                      <span className="text-sm text-white font-medium">
+                        {monitoringStatus.monitoringActive ? 'Active' : 'Paused'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Real-time Warnings */}
+                <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4">
+                  <h4 className="text-sm font-medium text-blue-300 mb-2">Real-time Warnings</h4>
+                  <div className="space-y-1 text-xs text-blue-200">
+                    <div>• Tab switched → Video auto-paused</div>
+                    <div>• Face not detected → Attention lost</div>
+                    <div>• Posture issues → Health warnings</div>
+                    <div>• Window focus lost → Progress frozen</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Enhanced Course Navigation & Quick Access */}
+        <section className="mb-12">
+          <h2 className="text-xl font-semibold text-white mb-6">Course Navigation & Quick Access</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Continue Learning */}
+            <div 
+              onClick={() => setShowContinueModal(true)}
+              className="group bg-gradient-to-br from-green-600/20 to-emerald-600/20 border border-green-500/30 rounded-2xl p-6 cursor-pointer transition-all hover:transform hover:scale-105 hover:border-green-400/60 hover:shadow-lg hover:shadow-green-400/20"
+            >
+              <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">🎬</div>
+              <h3 className="text-lg font-semibold text-white mb-2">Continue Learning</h3>
+              <p className="text-sm text-gray-400 mb-4">Resume from last saved position</p>
+              <div className="text-xs text-green-400 flex items-center gap-2">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+                {getRecentVideos().length} videos in progress
+              </div>
+            </div>
+
+            {/* View Courses */}
+            <div 
+              onClick={() => navigateTo('video-courses')}
+              className="group bg-gradient-to-br from-blue-600/20 to-cyan-600/20 border border-blue-500/30 rounded-2xl p-6 cursor-pointer transition-all hover:transform hover:scale-105 hover:border-blue-400/60 hover:shadow-lg hover:shadow-blue-400/20"
+            >
+              <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">📚</div>
+              <h3 className="text-lg font-semibold text-white mb-2">View Courses</h3>
+              <p className="text-sm text-gray-400 mb-4">Browse all available courses</p>
+              <div className="text-xs text-blue-400">3 courses available</div>
+            </div>
+
+            {/* Start Quiz */}
+            <div 
+              onClick={() => {
+                const hasAvailableQuiz = Object.values(quizzes).some(q => q.available)
+                if (hasAvailableQuiz) {
+                  navigateTo('quizzes')
+                } else {
+                  alert('No quizzes available yet. Complete more course content to unlock quizzes.')
+                }
+              }}
+              className="group bg-gradient-to-br from-purple-600/20 to-pink-600/20 border border-purple-500/30 rounded-2xl p-6 cursor-pointer transition-all hover:transform hover:scale-105 hover:border-purple-400/60 hover:shadow-lg hover:shadow-purple-400/20"
+            >
+              <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">📝</div>
+              <h3 className="text-lg font-semibold text-white mb-2">Start Quiz</h3>
+              <p className="text-sm text-gray-400 mb-4">Test your knowledge</p>
+              <div className="text-xs text-purple-400">
+                {Object.values(quizzes).filter(q => q.available).length} available
+              </div>
+            </div>
+
+            {/* View Reports */}
+            <div 
+              onClick={() => navigateTo('reports')}
+              className="group bg-gradient-to-br from-orange-600/20 to-red-600/20 border border-orange-500/30 rounded-2xl p-6 cursor-pointer transition-all hover:transform hover:scale-105 hover:border-orange-400/60 hover:shadow-lg hover:shadow-orange-400/20"
+            >
+              <div className="text-3xl mb-3 group-hover:scale-110 transition-transform">📊</div>
+              <h3 className="text-lg font-semibold text-white mb-2">View Reports</h3>
+              <p className="text-sm text-gray-400 mb-4">Detailed analytics & progress</p>
+              <div className="text-xs text-orange-400">Last 30 days</div>
+            </div>
+          </div>
+        </section>
+
+        {/* Top Feature Cards */}
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {[
+            { id: 'video-courses', icon: '🎥', title: 'Video Courses', desc: 'Access monitored video lessons' },
+            { id: 'study-materials', icon: '📚', title: 'Study Materials', desc: 'Browse reading content and resources' },
+            { id: 'profile', icon: '👤', title: 'Profile', desc: 'View personal status and account details' },
+            { id: 'reports', icon: '📊', title: 'Reports', desc: 'View analytics and progress reports' }
+          ].map((card) => (
+            <div
+              key={card.id}
+              onClick={() => navigateTo(card.id)}
+              className="group relative bg-gray-800/50 border border-gray-700/50 rounded-2xl p-6 cursor-pointer transition-all hover:transform hover:scale-105 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/20"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-400 to-cyan-400 transform -translate-x-full group-hover:translate-x-0 transition-transform"></div>
+              <div className="text-3xl mb-4">{card.icon}</div>
+              <h3 className="text-lg font-semibold text-white mb-2">{card.title}</h3>
+              <p className="text-gray-400 text-sm">{card.desc}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* Real-Time Status Panel with Focus Awareness */}
+        <section className="bg-gray-800/30 border border-gray-700/50 rounded-2xl p-8 mb-12">
+          <h2 className="text-xl font-semibold text-white mb-6">Real-Time Status & Progress Control</h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {/* Posture Status */}
+            <div className="flex items-center gap-3 bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+              <div className={`w-3 h-3 rounded-full ${monitoring.postureStatus.includes('Good') || monitoring.postureStatus.includes('Excellent') ? 'bg-green-400 shadow-lg shadow-green-400/50' : 'bg-yellow-400 shadow-lg shadow-yellow-400/50'}`}></div>
+              <div>
+                <div className="text-sm text-gray-400">Posture</div>
+                <div className="text-white font-medium">{monitoring.postureStatus}</div>
+              </div>
+            </div>
+            
+            {/* Attention Status */}
+            <div className="flex items-center gap-3 bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+              <div className={`w-3 h-3 rounded-full ${monitoring.attentionStatus.includes('Focused') || monitoring.attentionStatus.includes('concentrated') ? 'bg-blue-400 shadow-lg shadow-blue-400/50' : 'bg-gray-400 shadow-lg shadow-gray-400/50'}`}></div>
+              <div>
+                <div className="text-sm text-gray-400">Attention</div>
+                <div className="text-white font-medium">{monitoring.attentionStatus}</div>
+              </div>
+            </div>
+            
+            {/* Focus Status */}
+            <div className="flex items-center gap-3 bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+              <div className={`w-3 h-3 rounded-full ${
+                focusState.isFocused && focusState.tabActive && focusState.faceDetected ? 
+                'bg-green-400 shadow-lg shadow-green-400/50' : 
+                'bg-red-400 shadow-lg shadow-red-400/50'
+              }`}></div>
+              <div>
+                <div className="text-sm text-gray-400">Focus Status</div>
+                <div className="text-white font-medium text-sm">
+                  {focusState.isFocused && focusState.tabActive && focusState.faceDetected ? 'Active' : 'Paused'}
+                </div>
+              </div>
+            </div>
+            
+            {/* Progress Tracking */}
+            <div className="flex items-center gap-3 bg-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+              <div className={`w-3 h-3 rounded-full ${
+                focusState.isFocused && focusState.tabActive && focusState.faceDetected ? 
+                'bg-green-400 shadow-lg shadow-green-400/50' : 
+                'bg-yellow-400 shadow-lg shadow-yellow-400/50'
+              }`}></div>
+              <div>
+                <div className="text-sm text-gray-400">Progress</div>
+                <div className="text-white font-medium text-sm">
+                  {focusState.isFocused && focusState.tabActive && focusState.faceDetected ? 'Tracking' : 'Paused'}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Focus Control Info */}
+          <div className="bg-gradient-to-r from-blue-900/20 to-purple-900/20 border border-blue-500/30 rounded-xl p-4">
+            <h3 className="text-white font-semibold mb-3 text-sm">Focus-Aware Progress Control</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${focusState.tabActive ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                <span className="text-gray-300">
+                  {focusState.tabActive ? '✅ Tab Active' : '❌ Tab Switched'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${focusState.isFocused ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                <span className="text-gray-300">
+                  {focusState.isFocused ? '✅ Window Focused' : '❌ Lost Focus'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className={`w-2 h-2 rounded-full ${focusState.faceDetected ? 'bg-green-400' : 'bg-red-400'}`}></div>
+                <span className="text-gray-300">
+                  {focusState.faceDetected ? '✅ Face Detected' : '❌ No Face'}
+                </span>
+              </div>
+            </div>
+            <p className="text-xs text-gray-400 mt-3 italic">
+              ⚠️ Progress is only counted when all focus conditions are met
+            </p>
+          </div>
+        </section>
+
+        {/* Course Progress Section */}
+        <section className="mb-12">
+          <h2 className="text-xl font-semibold text-white mb-6">Course Progress</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Object.entries(courses).map(([courseId, course]) => (
+              <div key={courseId} className="bg-gray-800/50 border border-gray-700/50 rounded-2xl p-6 hover:border-blue-500/30 transition-colors">
+                <h3 className="text-lg font-semibold text-white mb-4">{course.title}</h3>
+                <div className="bg-gray-700/50 rounded-lg h-2 overflow-hidden mb-3">
+                  <div 
+                    className="bg-gradient-to-r from-blue-400 to-cyan-400 h-full rounded-lg transition-all duration-500"
+                    style={{ width: `${course.progress}%` }}
+                  ></div>
+                </div>
+                <span className="text-gray-400 text-sm mb-4 block">{course.progress}% complete</span>
+                <button 
+                  onClick={() => continueCourse(courseId)}
+                  className="w-full bg-gradient-to-r from-blue-400 to-cyan-400 text-white py-2 px-4 rounded-lg hover:shadow-lg hover:shadow-blue-400/30 transition-all transform hover:scale-105"
+                >
+                  Continue Learning
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* AI Monitoring Section */}
+        <section className="bg-gray-800/30 border border-gray-700/50 rounded-2xl p-8 mb-12">
+          <h2 className="text-xl font-semibold text-white mb-6">AI Monitoring</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div className={`text-center p-4 rounded-xl ${monitoring.cameraOn ? 'bg-green-400/10 text-green-400' : 'bg-red-400/10 text-red-400'}`}>
+              <div className="text-3xl mb-2">{monitoring.cameraOn ? '📹' : '📷'}</div>
+              <span>{monitoring.cameraOn ? 'Camera On' : 'Camera Off'}</span>
+            </div>
+            
+            <div className={`text-center p-4 rounded-xl ${monitoring.isActive ? 'bg-green-400/10 text-green-400' : 'bg-gray-400/10 text-gray-400'}`}>
+              <div className="text-3xl mb-2">🧠</div>
+              <span>AI Monitoring: {monitoring.isActive ? 'Active' : 'Inactive'}</span>
+            </div>
+          </div>
+          
+          <button 
+            onClick={toggleMonitoring}
+            className={`w-full py-3 px-6 rounded-xl font-semibold transition-all transform hover:scale-105 mb-6 ${
+              monitoring.isActive 
+                ? 'bg-gradient-to-r from-red-400 to-red-500 text-white hover:shadow-lg hover:shadow-red-400/30' 
+                : 'bg-gradient-to-r from-green-400 to-green-500 text-white hover:shadow-lg hover:shadow-green-400/30'
+            }`}
+          >
+            {monitoring.isActive ? (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+                </svg>
+                Stop Monitoring
+              </span>
+            ) : (
+              <span className="flex items-center justify-center gap-2">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Start Monitoring
+              </span>
+            )}
+          </button>
+          
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-gray-400">
+              <div className="w-4 h-4 text-green-400">✓</div>
+              <span>Live video feed capture</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400">
+              <div className="w-4 h-4 text-green-400">✓</div>
+              <span>Session activity logging</span>
+            </div>
+            <div className="flex items-center gap-2 text-gray-400">
+              <div className="w-4 h-4 text-green-400">✓</div>
+              <span>Real-time alerts</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Quiz Sets Section */}
+        <section>
+          <h2 className="text-xl font-semibold text-white mb-6">Quiz Sets</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              { id: 'web-dev', title: 'Web Development', format: '20 MCQs + 2 Coding Questions' },
+              { id: 'android-dev', title: 'Android Development', format: '25 MCQs + 3 Coding Questions' },
+              { id: 'game-dev', title: 'Game Development', format: '30 MCQs + 1 Project' }
+            ].map((quiz) => {
+              const isAvailable = quizzes[quiz.id as keyof typeof quizzes]?.available
+              const isLocked = !isAvailable
+              
+              return (
+                <div 
+                  key={quiz.id}
+                  className={`bg-gray-800/50 border rounded-2xl p-6 transition-all ${
+                    isLocked 
+                      ? 'border-gray-700/50 opacity-70' 
+                      : 'border-green-400/30 hover:border-green-400/50'
+                  }`}
+                >
+                  <h3 className="text-lg font-semibold text-white mb-2">{quiz.title}</h3>
+                  <p className="text-gray-400 text-sm mb-4">{quiz.format}</p>
+                  <button 
+                    onClick={() => startQuiz(quiz.id)}
+                    disabled={isLocked}
+                    className={`w-full py-2 px-4 rounded-lg font-medium transition-all ${
+                      isLocked
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-400 to-cyan-400 text-white hover:shadow-lg hover:shadow-blue-400/30 transform hover:scale-105'
+                    }`}
+                  >
+                    {isLocked ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Locked
+                      </span>
+                    ) : (
+                      'Start Quiz'
+                    )}
+                  </button>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* Dashboard Flow and System Achievements - Hidden as requested */}
+
+            {/* VIVA-Ready Summary */}
+            <div className="mt-6 bg-gradient-to-r from-purple-900/20 to-pink-900/20 border border-purple-500/30 rounded-xl p-6">
+              <h3 className="text-purple-400 font-semibold mb-3">🎓 VIVA-Ready Summary</h3>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                "The dashboard provides a real-time overview of learning progress, posture, and attention. 
+                It calculates course-wise progress from valid video watch time and derives overall progress by averaging all courses. 
+                Progress pauses automatically during focus loss, ensuring fair and accurate learning analytics."
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="px-3 py-1 bg-blue-900/40 border border-blue-500/30 rounded-full text-xs text-blue-300">
+                  🧠 Smart Monitoring
+                </span>
+                <span className="px-3 py-1 bg-green-900/40 border border-green-500/30 rounded-full text-xs text-green-300">
+                  ✅ Focus-Aware
+                </span>
+                <span className="px-3 py-1 bg-purple-900/40 border border-purple-500/30 rounded-full text-xs text-purple-300">
+                  📊 Real-Time
+                </span>
+                <span className="px-3 py-1 bg-orange-900/40 border border-orange-500/30 rounded-full text-xs text-orange-300">
+                  🎯 Accurate
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Continue Learning Modal */}
+      {showContinueModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-gray-800 border border-gray-700 rounded-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-700">
+              <h2 className="text-xl font-semibold text-white">Continue Learning</h2>
+              <button
+                onClick={() => setShowContinueModal(false)}
+                className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-gray-700 rounded-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {getRecentVideos().length > 0 ? (
+                <div>
+                  <p className="text-gray-300 text-sm mb-6">
+                    Select a video to continue watching from your last saved position
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {getRecentVideos().map((video, index) => (
+                      <div
+                        key={video.id}
+                        onClick={() => {
+                          router.push(`/courses/${video.courseId}?video=${video.id}&time=${video.lastPosition}`)
+                          setShowContinueModal(false)
+                        }}
+                        className="bg-gray-700/50 border border-gray-600/50 rounded-xl p-4 cursor-pointer transition-all hover:border-green-400/50 hover:bg-gray-600/50 group"
+                      >
+                        {/* Video Thumbnail */}
+                        {video.thumbnail ? (
+                          <img 
+                            src={video.thumbnail} 
+                            alt={video.title}
+                            className="w-full h-32 object-cover rounded-lg mb-3"
+                          />
+                        ) : (
+                          <div className="w-full h-32 bg-gradient-to-br from-blue-600/20 to-purple-600/20 rounded-lg mb-3 flex items-center justify-center">
+                            <span className="text-3xl">🎥</span>
+                          </div>
+                        )}
+                        
+                        {/* Video Info */}
+                        <h3 className="text-white font-medium text-sm mb-2 group-hover:text-green-400 transition-colors line-clamp-2">
+                          {video.title}
+                        </h3>
+                        
+                        {/* Progress Bar */}
+                        <div className="mb-2">
+                          <div className="bg-gray-600/50 rounded-full h-2 overflow-hidden">
+                            <div 
+                              className="bg-gradient-to-r from-green-400 to-emerald-400 h-full rounded-full transition-all"
+                              style={{ width: `${(video.lastPosition / video.duration) * 100}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                        
+                        {/* Video Details */}
+                        <div className="flex items-center justify-between text-xs text-gray-400">
+                          <span className="flex items-center gap-1">
+                            {video.completed ? (
+                              <>
+                                <svg className="w-3 h-3 text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 00016zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l2-2z" clipRule="evenodd" />
+                                </svg>
+                                Completed
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-3 h-3 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 00016zm0-2a6 6 0 100-12 6 6 0 00012zm-1-5a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clipRule="evenodd" />
+                                </svg>
+                                In Progress
+                              </>
+                            )}
+                          </span>
+                          <span>
+                            {Math.floor(video.lastPosition / 60)}:{(video.lastPosition % 60).toString().padStart(2, '0')} / {Math.floor(video.duration / 60)}:{(video.duration % 60).toString().padStart(2, '0')}
+                          </span>
+                        </div>
+                        
+                        {/* Course Badge */}
+                        <div className="mt-2">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-900/30 border border-blue-500/30 rounded-full text-xs text-blue-300">
+                            {courses[video.courseId as keyof typeof courses]?.title}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <div className="text-6xl mb-4">📚</div>
+                  <h3 className="text-xl font-semibold text-white mb-2">No Videos in Progress</h3>
+                  <p className="text-gray-400 mb-6">Start watching videos to enable continue learning</p>
+                  <button
+                    onClick={() => {
+                      setShowContinueModal(false)
+                      navigateTo('courses')
+                    }}
+                    className="bg-gradient-to-r from-blue-400 to-cyan-400 text-white px-6 py-3 rounded-lg hover:shadow-lg hover:shadow-blue-400/30 transition-all"
+                  >
+                    Browse Courses
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="flex items-center justify-between p-6 border-t border-gray-700">
+              <p className="text-sm text-gray-400">
+                {getRecentVideos().length} {getRecentVideos().length === 1 ? 'video' : 'videos'} in progress
+              </p>
+              <button
+                onClick={() => setShowContinueModal(false)}
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}

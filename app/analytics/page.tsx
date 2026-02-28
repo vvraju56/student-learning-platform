@@ -4,12 +4,16 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { auth } from "@/lib/firebase"
 import { VideoAnalyticsDashboard } from "@/components/video-analytics-dashboard"
-import { ArrowLeft, BarChart3 } from "lucide-react"
+import { useMigrateOldData } from "@/hooks/use-migrate-old-data"
+import { ArrowLeft, BarChart3, RefreshCw } from "lucide-react"
 
 export default function AnalyticsPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [showMigrationStatus, setShowMigrationStatus] = useState(false)
+  
+  const migrationStatus = useMigrateOldData(user?.uid || "")
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((currentUser) => {
@@ -74,6 +78,32 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </header>
+
+      {/* Migration Status Banner */}
+      {migrationStatus.status !== "idle" && (
+        <div className={`${
+          migrationStatus.status === "completed"
+            ? "bg-green-900 border-green-700"
+            : migrationStatus.status === "error"
+              ? "bg-red-900 border-red-700"
+              : "bg-blue-900 border-blue-700"
+        } border-t border-b p-4`}>
+          <div className="max-w-7xl mx-auto px-6 flex items-center gap-3">
+            {migrationStatus.status === "migrating" && (
+              <RefreshCw className="w-5 h-5 text-blue-400 animate-spin" />
+            )}
+            <span className={`text-sm ${
+              migrationStatus.status === "completed"
+                ? "text-green-200"
+                : migrationStatus.status === "error"
+                  ? "text-red-200"
+                  : "text-blue-200"
+            }`}>
+              {migrationStatus.message}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">

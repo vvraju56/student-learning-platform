@@ -2,7 +2,15 @@
 
 import { useState, useEffect } from "react"
 import { videoSyncService } from "@/services/video-sync-service"
-import { TrendingUp, Clock, Activity, CheckCircle } from "lucide-react"
+import { TrendingUp, Clock, Activity, CheckCircle, BookOpen } from "lucide-react"
+
+interface CourseProgress {
+  courseId: string
+  courseName: string
+  totalVideos: number
+  completedVideos: number
+  progress: number
+}
 
 interface DashboardStats {
   totalVideosTracked: number
@@ -28,6 +36,9 @@ export function VideoAnalyticsDashboard() {
       duration: number
     }>
   >([])
+
+  const [courseProgress, setCourseProgress] = useState<CourseProgress[]>([])
+  const [overallProgress, setOverallProgress] = useState(0)
 
   // Update dashboard every 10 seconds (lightweight local updates)
   useEffect(() => {
@@ -121,6 +132,77 @@ export function VideoAnalyticsDashboard() {
           <p className="text-gray-500 text-xs mt-2">5-min intervals</p>
         </div>
       </div>
+
+      {/* Overall Progress Card */}
+      <div className="mb-8 bg-gradient-to-r from-purple-900 to-indigo-900 p-6 rounded-lg border border-purple-700">
+        <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+          <CheckCircle className="w-5 h-5" />
+          Overall Course Progress
+        </h3>
+        <div className="text-4xl font-bold text-white mb-2">{overallProgress}%</div>
+        <p className="text-purple-200 text-sm mb-4">
+          Complete
+        </p>
+        <div className="w-full bg-gray-700 rounded-full h-3">
+          <div
+            className="bg-gradient-to-r from-purple-500 to-indigo-500 h-3 rounded-full transition-all duration-500"
+            style={{ width: `${overallProgress}%` }}
+          />
+        </div>
+      </div>
+
+      {/* Course-wise Progress */}
+      {courseProgress.length > 0 && (
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+            <BookOpen className="w-5 h-5" />
+            Course-wise Progress
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {courseProgress.map((course) => (
+              <div
+                key={course.courseId}
+                className="bg-gray-700 p-6 rounded-lg border border-gray-600 hover:border-indigo-500 transition"
+              >
+                <h4 className="text-white font-semibold mb-3">
+                  {course.courseName}
+                </h4>
+                <div className="mb-3">
+                  <div className="flex justify-between mb-2">
+                    <span className="text-gray-300 text-sm">
+                      {course.completedVideos} / {course.totalVideos} videos
+                    </span>
+                    <span className="text-indigo-400 font-semibold">
+                      {Math.round(course.progress)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-600 rounded-full h-2">
+                    <div
+                      className="bg-indigo-500 h-2 rounded-full transition-all duration-500"
+                      style={{ width: `${course.progress}%` }}
+                    />
+                  </div>
+                </div>
+                {course.progress >= 100 && (
+                  <div className="text-xs text-green-400 font-semibold">
+                    ✓ Completed
+                  </div>
+                )}
+                {course.progress > 0 && course.progress < 100 && (
+                  <div className="text-xs text-yellow-400">
+                    In Progress
+                  </div>
+                )}
+                {course.progress === 0 && (
+                  <div className="text-xs text-gray-400">
+                    Not Started
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Video Analytics Table */}
       {courseAnalytics.length > 0 && (
