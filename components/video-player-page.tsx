@@ -218,9 +218,7 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
                   <p className="mb-0 text-muted" style={{ fontSize: '0.875rem' }}>
                     {video.description}
                   </p>
-                  <p className="mb-0 text-warning" style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-                    👆 Click 3 times to play video
-                  </p>
+
                 </div>
               </div>
             </div>
