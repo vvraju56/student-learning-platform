@@ -85,6 +85,7 @@ export default function FaceMonitoredCoursePage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{course.title}</h1>
             <p className="text-gray-600">{course.description}</p>
+            <p className="text-yellow-600 text-sm mt-1">👆 Click 3 times to play video</p>
           </div>
           <Button 
             variant="outline" 
