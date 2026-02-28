@@ -28,7 +28,7 @@ A face-monitoring powered learning management system with real-time monitoring, 
 
 ## Live Demo
 
-Visit the live platform: **[student-learning-platform.onrender.com](https://student-learning-platform.onrender.com)**
+Visit the live platform: **[student-learning-platform-9f9d.onrender.com](https://student-learning-platform-9f9d.onrender.com)**
 
 ## Screenshots
 
