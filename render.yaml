@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: student-learning-platform
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    region: oregon
