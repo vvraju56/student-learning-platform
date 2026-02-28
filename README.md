@@ -6,7 +6,7 @@ A face-monitoring powered learning management system with real-time monitoring, 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![Firebase](https://img.shields.io/badge/Firebase-Enabled-orange?style=for-the-badge&logo=firebase)](https://firebase.google.com)
 
-![Platform Overview](./docs/images/platform-overview.png)
+![Home Page](./img/home-page.png)
 
 ## Features
 
@@ -17,8 +17,6 @@ A face-monitoring powered learning management system with real-time monitoring, 
 - **Study Materials** - Comprehensive study materials for multiple courses
 - **Performance Reports** - Detailed analytics and progress reports
 - **User Authentication** - Secure login with Firebase Authentication
-
-![Dashboard](./docs/images/dashboard.png)
 
 ## Tech Stack
 
@@ -32,24 +30,41 @@ A face-monitoring powered learning management system with real-time monitoring, 
 
 Visit the live platform: **[student-learning-platform.onrender.com](https://student-learning-platform.onrender.com)**
 
+## Screenshots
+
+### Sign Up
+![Sign Up](./img/signup.png)
+
+### Sign In
+![Sign In](./img/signin.png)
+
+### Dashboard
+![Dashboard](./img/dashboard.png)
+
+### Select Courses
+![Select Courses](./img/select-courses.png)
+
+### Video Courses
+![Video Courses](./img/video-courses.png)
+
+### Quiz Test
+![Quiz Test](./img/quiz-test.png)
+
 ## Courses Available
 
 ### 1. Web Development
-![Web Dev](./docs/images/web-dev.png)
 - HTML, CSS, JavaScript fundamentals
 - React, Node.js, Express
 - Full-stack development patterns
 - Responsive design & accessibility
 
 ### 2. App Development
-![App Dev](./docs/images/app-dev.png)
 - Android (Java & Kotlin)
 - Flutter & Dart
 - Mobile UI/UX patterns
 - App deployment strategies
 
 ### 3. Game Development
-![Game Dev](./docs/images/game-dev.png)
 - Unity (C# scripting)
 - Unreal Engine (Blueprints)
 - Godot (GDScript)
@@ -126,8 +141,6 @@ npm run dev
 
 7. **Click "Create Web Service"**
 
-![Render Deployment](./docs/images/render-deploy.png)
-
 ## Firebase Setup
 
 1. Create a new Firebase project at https://console.firebase.google.com
@@ -163,13 +176,13 @@ student-learning-platform/
 ├── lib/                  # Utility functions & Firebase config
 ├── data/                 # Course data & study materials
 ├── services/             # API services
-└── styles/               # Global styles
+├── styles/               # Global styles
+└── img/                  # Project screenshots
 ```
 
 ## Key Features
 
 ### Face Detection System
-![Face Monitoring](./docs/images/face-monitoring.png)
 
 Uses TensorFlow.js with BlazeFace model to detect student presence during video lectures:
 - Pauses video when face is not detected
@@ -189,9 +202,6 @@ Uses TensorFlow.js with BlazeFace model to detect student presence during video 
 - Face presence verification
 - Timed quiz sessions
 
-### Quiz Interface
-![Quiz](./docs/images/quiz.png)
-
 ## Scripts
 
 ```bash
@@ -201,23 +211,6 @@ npm run start    # Start production server
 npm run lint     # Run ESLint
 npm run test     # Run tests
 ```
-
-## Screenshots
-
-### Login Page
-![Login](./docs/images/login.png)
-
-### Course Selection
-![Courses](./docs/images/courses.png)
-
-### Video Learning
-![Video Learning](./docs/images/video-learning.png)
-
-### Quiz System
-![Quiz System](./docs/images/quiz-system.png)
-
-### Analytics
-![Analytics](./docs/images/analytics.png)
 
 ## Contributing
 
