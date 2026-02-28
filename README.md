@@ -6,7 +6,7 @@ A face-monitoring powered learning management system with real-time monitoring, 
 [![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)](https://nextjs.org)
 [![Firebase](https://img.shields.io/badge/Firebase-Enabled-orange?style=for-the-badge&logo=firebase)](https://firebase.google.com)
 
-![Home Page](./img/home-page.png)<img width="1920" height="1080" alt="home-page" src="https://github.com/user-attachments/assets/97418a63-c742-4bf0-b218-09c8ccc84320" />
+![Home Page .<img width="1920" height="1080" alt="home-page" src="https://github.com/user-attachments/assets/97418a63-c742-4bf0-b218-09c8ccc84320" /> ]
 
 
 ## Features
