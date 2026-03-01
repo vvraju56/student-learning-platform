@@ -87,7 +87,7 @@ function AuthPageContent() {
 
         body {
           min-height: 100vh;
-          width: 100vw;
+          width: 100%;
           background: #1a1a2e;
           display: flex;
           flex-direction: column;
@@ -95,7 +95,13 @@ function AuthPageContent() {
           justify-content: center;
           overflow-x: hidden;
           margin: 0;
-          padding: 0;
+          padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+          body {
+            padding: 10px;
+          }
         }
 
         .auth-wrapper {
@@ -392,6 +398,7 @@ function AuthPageContent() {
             height: auto;
             min-height: 500px;
             max-width: 400px;
+            margin: 20px;
           }
 
           .welcome-panel {
@@ -428,15 +435,24 @@ function AuthPageContent() {
         @media (max-width: 480px) {
           .auth-wrapper {
             max-width: 100%;
-            margin: 0 10px;
+            margin: 10px;
+            min-height: 450px;
+            border-radius: 15px;
+            border-width: 1px;
           }
 
           .credentials-panel {
-            padding: 25px 20px;
+            padding: 20px 15px;
           }
 
           .credentials-panel h2 {
-            font-size: 24px;
+            font-size: 22px;
+            margin-bottom: 20px;
+          }
+
+          .field-wrapper {
+            height: 50px;
+            margin-bottom: 20px;
           }
 
           .field-wrapper input {
@@ -445,6 +461,32 @@ function AuthPageContent() {
 
           .field-wrapper label {
             font-size: 14px;
+          }
+
+          .submit-button {
+            height: 45px;
+            font-size: 16px;
+          }
+
+          .toggle-btn {
+            font-size: 14px;
+            padding: 8px 20px;
+          }
+          
+          .google-btn {
+            height: 45px;
+            font-size: 14px;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .auth-wrapper {
+            margin: 5px;
+            min-height: 400px;
+          }
+          
+          .credentials-panel h2 {
+            font-size: 20px;
           }
         }
       `}</style>
