@@ -67,11 +67,13 @@ function AuthPageContent() {
       return
     }
 
+    // Open OTP modal - user MUST verify before signup completes
     setVerifyEmail(email)
     setVerifyMode(true)
     setOtpSent(false)
     setOtpError(null)
     setPendingRegister({ username, email, password })
+    setRegisterError("⚠️ VERIFICATION REQUIRED: Check your email for OTP code!")
   }
 
   const handleVerifyOTPForRegister = async (e: React.FormEvent<HTMLFormElement>) => {
