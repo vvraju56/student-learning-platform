@@ -44,12 +44,22 @@ class FirebaseProgressManager {
   private firebaseSaveInterval = SYNC_INTERVAL_MS // 5 minutes throttle (FREE TIER SAFE)
 
   constructor(userId: string) {
+    if (!userId) {
+      console.warn('FirebaseProgressManager: No userId provided, progress will not be saved')
+      this.userId = ''
+      this.db = null
+      return
+    }
     this.userId = userId
     this.db = realtimeDb
     if (!this.db) {
       console.warn('Firebase Realtime Database not available')
     }
     this.loadLocalProgress()
+  }
+
+  private isValidUser(): boolean {
+    return !!this.userId && this.userId.length > 0
   }
 
   private loadLocalProgress() {
@@ -60,6 +70,10 @@ class FirebaseProgressManager {
   // ✅ SAFE: Save video progress with rate limiting
   async saveVideoProgress(videoId: string, courseId: string, progress: SaveVideoProgress) {
     try {
+      if (!this.isValidUser()) {
+        console.warn('Invalid userId, skipping save')
+        return false
+      }
       if (!this.db) {
         console.warn('Firebase not available, skipping save')
         return false
@@ -90,6 +104,10 @@ class FirebaseProgressManager {
   // ✅ FREE PLAN SAFE: Get user progress (efficient reads)
   async getUserProgress() {
     try {
+      if (!this.isValidUser()) {
+        console.warn('Invalid userId, skipping get progress')
+        return null
+      }
       if (!this.db) {
         console.warn('Firebase not available, returning null')
         return null
@@ -106,6 +124,10 @@ class FirebaseProgressManager {
   // ✅ FREE PLAN SAFE: Update course progress occasionally
   async updateCourseProgress(courseId: string, progress: number, completedVideos: number) {
     try {
+      if (!this.isValidUser()) {
+        console.warn('Invalid userId, skipping course update')
+        return
+      }
       if (!this.db) {
         console.warn('Firebase not available, skipping course update')
         return
@@ -266,6 +288,10 @@ class FirebaseProgressManager {
   // ✅ RESET ALL PROGRESS
   async resetAllProgress() {
     try {
+      if (!this.isValidUser()) {
+        console.warn('Invalid userId, skipping reset')
+        return false
+      }
       if (!this.db) {
         console.warn('Firebase not available')
         return false

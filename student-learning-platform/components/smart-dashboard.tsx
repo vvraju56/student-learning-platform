@@ -57,14 +57,16 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
   const [learningStats, setLearningStats] = useState({totalHours: 0, completedVideos: 0, totalViolations: 0})
   const [isLoading, setIsLoading] = useState(true)
   
-  // Firebase manager for progress tracking
-  const firebaseManager = new FirebaseProgressManager(user?.uid || "demo")
+  // Firebase manager for progress tracking - only create if user is logged in
+  const firebaseManager = user?.uid ? new FirebaseProgressManager(user.uid) : null
 
   const isFirstLoad = useRef(true)
   
   useEffect(() => {
     // Load user progress from Firebase AND localStorage
     const loadProgress = async () => {
+      if (!firebaseManager) return // Don't load if not logged in
+      
       if (isFirstLoad.current) {
         setIsLoading(true)
         isFirstLoad.current = false
@@ -522,7 +524,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
               </Card.Body>
             </Card>
 
-            {/* AI Monitoring Panel */}
+            {/* Face Monitoring Panel */}
             <Card className="border-0 shadow-lg" style={{ 
               backgroundColor: '#0a0a0a', 
               borderRadius: '12px',
@@ -530,7 +532,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
             }}>
               <Card.Header className="border-0 bg-transparent py-3">
                 <div className="d-flex justify-content-between align-items-center">
-                  <h5 className="mb-0 fw-bold" style={brightWhiteStyle}>AI Monitoring</h5>
+                  <h5 className="mb-0 fw-bold" style={brightWhiteStyle}>Face Monitoring</h5>
                   <Badge 
                     bg={isMonitoring ? 'success' : 'secondary'}
                   >
@@ -799,7 +801,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
                 <div className="p-3 rounded" style={{ backgroundColor: '#1a1a1a' }}>
                   <h6 className="fw-bold mb-3" style={brightWhiteStyle}>
                     <Eye className="w-5 h-5 me-2" />
-                    AI Monitoring
+                    Face Monitoring
                   </h6>
                   <ul className="mb-0" style={{ paddingLeft: '1rem', ...brightWhiteTextStyle }}>
                     <li className="mb-2 small">Face detection ensures active participation</li>
