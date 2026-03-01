@@ -55,10 +55,17 @@ function AuthPageContent() {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    e.stopPropagation()
     
     if (pendingRegister && otpSent) {
       setVerifyMode(true)
       setRegisterError("⚠️ Please verify your email first! Check for OTP in your inbox.")
+      return
+    }
+    
+    if (pendingRegister && !otpSent) {
+      setVerifyMode(true)
+      setRegisterError("⏳ Please wait for OTP to be sent...")
       return
     }
     
@@ -74,7 +81,7 @@ function AuthPageContent() {
       return
     }
 
-    // Immediately block signup - show modal first
+    // Block signup completely until OTP is verified
     setVerifyEmail(email)
     setPendingRegister({ username, email, password })
     setVerifyMode(true)
@@ -86,21 +93,23 @@ function AuthPageContent() {
     try {
       const formData = new FormData()
       formData.append("email", email)
+      console.log("Sending OTP to:", email)
       const otpResult = await requestOTP(formData)
+      console.log("OTP Result:", otpResult)
       if (otpResult?.success) {
         setOtpSent(true)
-        setRegisterError("✓ OTP sent to " + email + "! Enter the code in the popup.")
+        setRegisterError("✓ OTP sent to " + email + "! Enter the code below.")
       } else {
-        setRegisterError(otpResult?.error || "Failed to send OTP. Please try again.")
-        // Don't allow signup without OTP
-        return
+        setRegisterError(otpResult?.error || "Failed to send OTP. Try again.")
+        setPendingRegister(null)
       }
     } catch (error) {
-      setRegisterError("Error sending OTP. Please refresh and try again.")
-      return
+      console.error("OTP Error:", error)
+      setRegisterError("Error sending OTP. Please try again.")
+      setPendingRegister(null)
     }
     setOtpLoading(false)
-    // Prevent form from submitting normally
+    // Prevent form from submitting
     return false
   }
 
