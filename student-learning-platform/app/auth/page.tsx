@@ -103,42 +103,6 @@ function AuthPageContent() {
     // Prevent form from submitting normally
     return false
   }
-    
-    setRegisterError(null)
-    setSuccess(false)
-
-    const username = registerForm.username
-    const email = registerForm.email
-    const password = registerForm.password
-
-    if (!username || !email || !password) {
-      setRegisterError("Please fill in all fields")
-      return
-    }
-
-    setVerifyEmail(email)
-    setPendingRegister({ username, email, password })
-    setVerifyMode(true)
-    setOtpSent(false)
-    setOtpError(null)
-    
-    setOtpLoading(true)
-    try {
-      const formData = new FormData()
-      formData.append("email", email)
-      const otpResult = await requestOTP(formData)
-      if (otpResult?.success) {
-        setOtpSent(true)
-        setRegisterError("✓ OTP sent to " + email + "! Check your email and enter the code in the popup.")
-      } else {
-        setRegisterError(otpResult?.error || "Failed to send OTP. Please try again.")
-      }
-    } catch (error) {
-      setRegisterError("Error sending OTP. Please try again.")
-    }
-    setOtpLoading(false)
-    return false
-  }
 
   const handleVerifyOTPForRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()

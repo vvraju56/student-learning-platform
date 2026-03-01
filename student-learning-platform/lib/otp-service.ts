@@ -1,6 +1,8 @@
 "use server"
 
 import nodemailer from "nodemailer"
+import { db } from "@/lib/firebase"
+import { doc, setDoc, getDoc, deleteDoc } from "firebase/firestore"
 
 const EMAIL = process.env.EMAIL || "codetech9227@gmail.com"
 const EMAIL_PASSWORD = process.env.EMAIL_PASSWORD || "ysxf ygnf iorx tbew"
@@ -11,8 +13,6 @@ interface OTPEntry {
   expiresAt: number
   attempts: number
 }
-
-const otpStore: Map<string, OTPEntry> = new Map()
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -26,24 +26,59 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString()
 }
 
+async function getOTPFromDB(email: string): Promise<OTPEntry | null> {
+  try {
+    const docRef = doc(db, "otp_store", email)
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      return docSnap.data() as OTPEntry
+    }
+    return null
+  } catch (error) {
+    console.error("Error getting OTP from DB:", error)
+    return null
+  }
+}
+
+async function saveOTPToDB(entry: OTPEntry): Promise<void> {
+  try {
+    const docRef = doc(db, "otp_store", entry.email)
+    await setDoc(docRef, entry)
+  } catch (error) {
+    console.error("Error saving OTP to DB:", error)
+  }
+}
+
+async function deleteOTPFromDB(email: string): Promise<void> {
+  try {
+    const docRef = doc(db, "otp_store", email)
+    await deleteDoc(docRef)
+  } catch (error) {
+    console.error("Error deleting OTP from DB:", error)
+  }
+}
+
 export async function sendOTP(email: string): Promise<{ success?: boolean; error?: string; message?: string }> {
   try {
     if (!email || !email.includes("@")) {
       return { error: "Invalid email address" }
     }
 
-    const existingOTP = otpStore.get(email)
+    const existingOTP = await getOTPFromDB(email)
     if (existingOTP) {
       const timeSinceLastOTP = Date.now() - (existingOTP.expiresAt - 5 * 60 * 1000)
       if (timeSinceLastOTP < 60000) {
         return { error: "Please wait 60 seconds before requesting a new OTP" }
       }
+      // Delete old OTP
+      await deleteOTPFromDB(email)
     }
 
     const otp = generateOTP()
     const expiresAt = Date.now() + 5 * 60 * 1000
 
-    otpStore.set(email, { email, otp, expiresAt, attempts: 0 })
+    const otpEntry: OTPEntry = { email, otp, expiresAt, attempts: 0 }
+    await saveOTPToDB(otpEntry)
 
     const mailOptions = {
       from: `"LearnAI" <${EMAIL}>`,
@@ -99,29 +134,29 @@ export async function verifyOTP(email: string, otp: string): Promise<{ success?:
       return { error: "Email and OTP are required" }
     }
 
-    const otpEntry = otpStore.get(email)
+    const otpEntry = await getOTPFromDB(email)
 
     if (!otpEntry) {
       return { error: "No OTP found. Please request a new OTP." }
     }
 
     if (Date.now() > otpEntry.expiresAt) {
-      otpStore.delete(email)
+      await deleteOTPFromDB(email)
       return { error: "OTP has expired. Please request a new one." }
     }
 
     if (otpEntry.attempts >= 5) {
-      otpStore.delete(email)
+      await deleteOTPFromDB(email)
       return { error: "Too many attempts. Please request a new OTP." }
     }
 
     if (otpEntry.otp !== otp) {
       otpEntry.attempts += 1
-      otpStore.set(email, otpEntry)
+      await saveOTPToDB(otpEntry)
       return { valid: false, error: `Incorrect OTP. ${5 - otpEntry.attempts} attempts remaining.` }
     }
 
-    otpStore.delete(email)
+    await deleteOTPFromDB(email)
     return { success: true, valid: true }
   } catch (error: any) {
     console.error("Error verifying OTP:", error)
@@ -130,6 +165,6 @@ export async function verifyOTP(email: string, otp: string): Promise<{ success?:
 }
 
 export async function resendOTP(email: string): Promise<{ success?: boolean; error?: string }> {
-  otpStore.delete(email)
+  await deleteOTPFromDB(email)
   return sendOTP(email)
 }
