@@ -23,17 +23,18 @@ export async function signupWithGmail(formData: FormData) {
   }
 
   try {
-    const profileRef = doc(db, "profiles", email)
-    const profileSnap = await getDoc(profileRef)
+    const verificationRef = doc(db, "email_verifications", email)
+    const verificationSnap = await getDoc(verificationRef)
     
-    if (profileSnap.exists()) {
-      const existingData = profileSnap.data()
-      if (!existingData.emailVerified) {
+    if (verificationSnap.exists()) {
+      const verifiedData = verificationSnap.data()
+      if (!verifiedData.emailVerified) {
         return { needsVerification: true, email, message: "Please verify your email to complete registration" }
       }
-      return { error: "This email is already registered. Please log in." }
+    } else {
+      return { needsVerification: true, email, message: "Please verify your email to complete registration" }
     }
-
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 

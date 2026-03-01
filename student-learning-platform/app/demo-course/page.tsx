@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import AIMonitoringComponent from "@/components/ai-monitoring-system"
+import FaceMonitoringComponent from "@/components/ai-monitoring-system"
 import { Play, Clock, CheckCircle, AlertTriangle } from "lucide-react"
 
 interface CourseVideo {
@@ -25,19 +25,19 @@ interface CourseData {
 // Mock course data - replace with your actual course data
 const mockCourse: CourseData = {
   id: "demo-course",
-  title: "AI Monitoring Demo Course",
+  title: "Face Monitoring Demo Course",
   description: "Demonstration of AI monitoring system",
   videos: [
     {
       id: "video-1",
-      title: "Introduction to AI Monitoring",
+      title: "Introduction to Face Monitoring",
       url: "https://www.youtube.com/embed/dQw4w9WgXcQ",
       duration: 3600 // 1 hour in seconds
     }
   ]
 }
 
-export default function AIMonitoredCoursePage() {
+export default function FaceMonitoredCoursePage() {
   const router = useRouter()
   const videoRef = useRef<HTMLIFrameElement>(null)
   
@@ -71,7 +71,7 @@ export default function AIMonitoredCoursePage() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading AI Monitoring System...</p>
+          <p className="text-gray-600">Loading Face Monitoring System...</p>
         </div>
       </div>
     )
@@ -186,9 +186,9 @@ export default function AIMonitoredCoursePage() {
             </Card>
           </div>
 
-          {/* AI Monitoring Panel */}
+          {/* Face Monitoring Panel */}
           <div className="lg:col-span-1">
-            <AIMonitoringComponent
+            <FaceMonitoringComponent
               videoRef={videoRef}
               userId="demo-user" // Replace with actual user ID
               courseId={course.id}
@@ -202,7 +202,7 @@ export default function AIMonitoredCoursePage() {
       {/* Footer */}
       <div className="bg-white border-t border-gray-200 p-4 mt-12">
         <div className="max-w-6xl mx-auto text-center text-sm text-gray-600">
-          <p>🎯 AI Monitoring ensures authentic learning by tracking attention and preventing cheating.</p>
+          <p>🎯 Face Monitoring ensures authentic learning by tracking attention and preventing cheating.</p>
           <p className="mt-1">Your privacy is protected - all processing happens locally in your browser.</p>
         </div>
       </div>

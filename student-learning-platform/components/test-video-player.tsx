@@ -229,7 +229,7 @@ export function TestVideoPlayer({ user, courseId, videoId }: TestVideoPlayerProp
                     </Badge>
                   </div>
                   <div className="d-flex justify-content-between align-items-center">
-                    <span className="text-white small">AI Monitoring</span>
+                    <span className="text-white small">Face Monitoring</span>
                     <Badge bg={isMonitoring ? 'success' : 'secondary'}>
                       {isMonitoring ? 'Active' : 'Inactive'}
                     </Badge>

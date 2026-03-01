@@ -26,7 +26,7 @@ export async function verifyEmailOTP(formData: FormData) {
   const result = await verifyOTPService(email, otp)
 
   if (result.valid) {
-    const profileRef = doc(db, "profiles", email)
+    const profileRef = doc(db, "email_verifications", email)
     const profileSnap = await getDoc(profileRef)
     
     if (profileSnap.exists()) {

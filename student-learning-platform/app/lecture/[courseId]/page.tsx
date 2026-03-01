@@ -9,7 +9,7 @@ import {
   Monitor, Camera, Clock, CheckCircle, AlertCircle, 
   Eye, Maximize2, Minimize2, Play, Pause, X
 } from "lucide-react"
-import { useFaceDetection } from "@/hooks/use-face-detection"
+import { useRealtimeFaceDetection } from "@/hooks/use-realtime-face-detection"
 import { auth } from "@/lib/firebase"
 import { saveVideoProgressToFirestore } from "@/lib/firebase"
 
@@ -116,17 +116,18 @@ export default function LecturePage() {
     }
   }, [timeLimitReached, courseId, currentVideoIndex])
 
-  // Face detection hook - videoRef is shared between UI and detection
+  // Face detection hook - uses TensorFlow for real face detection
   const { 
     isFaceDetected, 
     isWebcamActive: cameraActive, 
     startWebcam, 
     stopWebcam, 
     faceDetectionError,
-    modelsLoaded,
-    videoStream,
-    videoRef: cameraVideoRef
-  } = useFaceDetection()
+    confidence,
+    videoStream
+  } = useRealtimeFaceDetection()
+  
+  const previewVideoRef = useRef<HTMLVideoElement>(null)
 
   const videoRef = useRef<HTMLIFrameElement>(null)
   const localVideoRef = useRef<HTMLVideoElement>(null)
@@ -174,6 +175,13 @@ export default function LecturePage() {
       window.removeEventListener("focus", handleWindowFocus)
     }
   }, [])
+
+  // Attach video stream to preview element
+  useEffect(() => {
+    if (videoStream && previewVideoRef.current) {
+      previewVideoRef.current.srcObject = videoStream
+    }
+  }, [videoStream])
 
   // Face not detected countdown timer - 5 seconds before pausing learning
   useEffect(() => {
@@ -277,7 +285,6 @@ export default function LecturePage() {
   // Start monitoring with camera
   const startMonitoring = async () => {
     console.log("🚀 START MONITORING clicked")
-    console.log("📹 Video ref:", cameraVideoRef.current)
     setMonitoringActive(true)
     setCourseBlocked(false)
     
@@ -335,6 +342,7 @@ export default function LecturePage() {
   // Get current video
   const currentVideo = course?.modules?.[0]?.videos?.[currentVideoIndex]
   const isYouTube = currentVideo?.url?.includes('youtube.com') || currentVideo?.url?.includes('youtu.be')
+  const isGoogleDrive = currentVideo?.url?.includes('drive.google.com')
 
   // Get attention status message
   const getAttentionStatus = () => {
@@ -387,7 +395,7 @@ export default function LecturePage() {
               Video {currentVideoIndex + 1} of {course.modules[0]?.videos?.length || 0}
             </div>
             <Badge variant={monitoringActive ? "default" : "secondary"}>
-              {monitoringActive ? "AI Monitoring Active" : "Monitoring Off"}
+              {monitoringActive ? "Face Monitoring Active" : "Monitoring Off"}
             </Badge>
           </div>
         </div>
@@ -424,6 +432,13 @@ export default function LecturePage() {
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />
+              ) : isGoogleDrive ? (
+                <iframe
+                  src={currentVideo.url}
+                  className="absolute inset-0 w-full h-full"
+                  allow="autoplay; fullscreen"
+                  allowFullScreen
+                />
               ) : (
                 <video
                   ref={localVideoRef}
@@ -432,7 +447,6 @@ export default function LecturePage() {
                   controls
                   onLoadedMetadata={(e) => {
                     setTotalDuration(e.currentTarget.duration)
-                    // Seek to saved session time if available
                     const savedTime = localStorage.getItem(`sessionTime_${courseId}_${currentVideoIndex}`)
                     if (savedTime) {
                       const time = parseInt(savedTime, 10)
@@ -501,7 +515,7 @@ export default function LecturePage() {
               ) : (
                 <Button onClick={startMonitoring}>
                   <Camera className="mr-2 h-4 w-4" />
-                  Start AI Monitoring
+                  Start Face Monitoring
                 </Button>
               )}
             </div>
@@ -529,15 +543,15 @@ export default function LecturePage() {
           </div>
         </div>
 
-        {/* Sidebar - AI Monitoring Panel */}
+        {/* Sidebar - Face Monitoring Panel */}
         <div className="w-80 bg-gray-800 border-l border-gray-700 p-4">
-          <h3 className="font-semibold mb-4">AI Monitoring Status</h3>
+          <h3 className="font-semibold mb-4">Face Monitoring Status</h3>
           
-          {/* Camera Preview - always render video element for ref availability */}
+          {/* Camera Preview */}
           <div className="mb-4">
             <div className="bg-gray-900 rounded-lg aspect-video relative overflow-hidden">
               <video
-                ref={cameraVideoRef}
+                ref={previewVideoRef}
                 autoPlay
                 playsInline
                 muted
@@ -556,10 +570,17 @@ export default function LecturePage() {
                   </div>
                 </div>
               )}
+              {cameraActive && isFaceDetected && (
+                <div className="absolute top-2 right-2 bg-green-500/80 px-2 py-1 rounded text-xs">
+                  Face Detected ({Math.round(confidence * 100)}%)
+                </div>
+              )}
+              {cameraActive && !isFaceDetected && (
+                <div className="absolute top-2 right-2 bg-red-500/80 px-2 py-1 rounded text-xs">
+                  No Face
+                </div>
+              )}
             </div>
-            {!modelsLoaded && (
-              <p className="text-xs text-yellow-500 mt-1">Loading AI models...</p>
-            )}
             {faceDetectionError && (
               <p className="text-xs text-red-500 mt-1">{faceDetectionError}</p>
             )}

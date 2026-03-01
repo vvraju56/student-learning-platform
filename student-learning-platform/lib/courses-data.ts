@@ -57,7 +57,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-1",
             title: "HTML Basics – Structure of Web Pages",
-            url: "/Web development/1_HTML_Basics_–_Structure_of_Web_Pages.mp4",
+            url: "https://drive.google.com/file/d/1jrsEnM39CJnNyBJsoOs9Cl7bJnCGusfx/preview",
             duration: 1800,
             summary: "Learn HTML fundamentals and how to structure web pages",
             keyPoints: ["HTML elements", "Document structure", "Basic tags"],
@@ -66,7 +66,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-2",
             title: "HTML Forms & Inputs",
-            url: "/Web development/2️_HTML_Forms_Inputs.mp4",
+            url: "https://drive.google.com/file/d/1Oj48qdQCoLV8Ej9iWZt4fEf8Xqf8Ts-u/preview",
             duration: 1800,
             summary: "Master HTML forms and various input types",
             keyPoints: ["Form elements", "Input validation", "User interaction"],
@@ -75,7 +75,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-3",
             title: "CSS Basics – Styling the Web",
-            url: "/Web development/3_CSS_Basics_–_Styling_the_Web.mp4",
+            url: "https://drive.google.com/file/d/111qGjGyaSVoUrQ9PmR0kwSpqfgD7YgtZ/preview",
             duration: 1800,
             summary: "Complete CSS styling fundamentals",
             keyPoints: ["CSS fundamentals", "Styling techniques", "Selectors"],
@@ -84,7 +84,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-4",
             title: "CSS Flexbox Layout",
-            url: "/Web development/4_CSS_Flexbox_Layout.mp4",
+            url: "https://drive.google.com/file/d/1Gaarm9_cx5BLS3UCYZNllYTVZVXiiPbA/preview",
             duration: 1800,
             summary: "Learn CSS Flexbox for modern layouts",
             keyPoints: ["Flexbox concepts", "Layout techniques", "Responsive design"],
@@ -93,7 +93,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-5",
             title: "CSS Grid Layout",
-            url: "/Web development/5_CSS_Grid_Layout.mp4",
+            url: "https://drive.google.com/file/d/1Akq6dnnKdjHP1sov_pKYGUUMxpvnRgEB/preview",
             duration: 1800,
             summary: "Master CSS Grid for complex layouts",
             keyPoints: ["Grid concepts", "Layout techniques", "Responsive design"],
@@ -102,7 +102,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-6",
             title: "JavaScript Basics",
-            url: "/Web development/6_JavaScript_Basics.mp4",
+            url: "https://drive.google.com/file/d/1uOXdRIw06DCu3o57UjIS_kFS85qRBJCO/preview",
             duration: 1800,
             summary: "Complete JavaScript programming basics",
             keyPoints: ["JS fundamentals", "Programming concepts", "Modern JavaScript"],
@@ -111,7 +111,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-7",
             title: "JavaScript DOM Manipulation",
-            url: "/Web development/7_JavaScript_DOM_Manipulation.mp4",
+            url: "https://drive.google.com/file/d/1VwGLyOUVIl_obbAsRFobiqiuDV_dVTF2/preview",
             duration: 1800,
             summary: "Manipulate HTML elements with JavaScript DOM",
             keyPoints: ["DOM concepts", "Element manipulation", "Event handling"],
@@ -120,7 +120,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-8",
             title: "Responsive Web Design",
-            url: "/Web development/8_Responsive_Web_Design.mp4",
+            url: "https://drive.google.com/file/d/1ipIRwRnJaYUVCvKSVOPL9JtCS3i7JzYA/preview",
             duration: 1800,
             summary: "Create responsive websites that work on all devices",
             keyPoints: ["Media queries", "Mobile-first", "Responsive techniques"],
@@ -129,7 +129,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-9",
             title: "Build a Simple Website (HTML + CSS)",
-            url: "/Web development/9_Build_a_Simple_Website_HTML_+_CSS.mp4",
+            url: "https://drive.google.com/file/d/1FqViIsmNZRtYnVIMLQ2PM1vnOIDO0tk-/preview",
             duration: 1800,
             summary: "Build a complete website using HTML and CSS",
             keyPoints: ["Project structure", "HTML and CSS integration", "Deployment"],
@@ -138,7 +138,7 @@ export const courses: Course[] = [
           {
             id: "web-dev-10",
             title: "Hosting a Website (GitHub Pages & Netlify)",
-            url: "/Web development/10_Hosting_a_Website_GitHub_Pages_Netlify.mp4",
+            url: "https://drive.google.com/file/d/13oRYtP1qhmSeQS9est4QdB1xNR-ZRD8a/preview",
             duration: 1800,
             summary: "Deploy your website to the internet for free",
             keyPoints: ["GitHub Pages", "Netlify deployment", "Custom domains"],
@@ -174,7 +174,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-1",
             title: "Introduction to Android App Development",
-            url: "/App Development/1a_Introduction_to_Android_App_Development.mp4",
+            url: "https://drive.google.com/file/d/1OYVl8Mq1kcLrujEVjTr4jOgHnWpvj5hj/preview",
             duration: 1800,
             summary: "Introduction to app development concepts and overview",
             keyPoints: ["App development basics", "Mobile development", "Platform overview"],
@@ -183,7 +183,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-2",
             title: "Installing Android Studio & SDK",
-            url: "/App Development/2a_Installing_Android_Studio_SDK.mp4",
+            url: "https://drive.google.com/file/d/19SpNWH2TrptwkyKyDu8llGq15iqSF2ad/preview",
             duration: 1800,
             summary: "Install and configure Android Studio development environment",
             keyPoints: ["Android Studio setup", "SDK configuration", "Emulator setup"],
@@ -192,7 +192,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-3",
             title: "Creating Your First Android App",
-            url: "/App Development/3a_Creating_Your_First_Android_App.mp4",
+            url: "https://drive.google.com/file/d/1QxVnjX1QGtPWjTRPichg2RMivNXIxwo0/preview",
             duration: 1800,
             summary: "Learn Kotlin programming fundamentals for Android",
             keyPoints: ["Kotlin syntax", "Programming concepts", "Android development"],
@@ -201,7 +201,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-4",
             title: "Understanding Activities & Layouts",
-            url: "/App Development/4a_Understanding_Activities_Layouts.mp4",
+            url: "https://drive.google.com/file/d/10t10Q0DHse4Ptk63JI5WwCXg29Gcr99l/preview",
             duration: 1800,
             summary: "Master Android UI layouts and XML design",
             keyPoints: ["Layout types", "XML design", "UI components"],
@@ -210,7 +210,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-5",
             title: "Buttons, TextView & User Input",
-            url: "/App Development/5a_Buttons,_TextView_User_Input.mp4",
+            url: "https://drive.google.com/file/d/1ERNa-yeSnZ0YtrPqmw-2aInVTLysRrpx/preview",
             duration: 1800,
             summary: "Handle user input with buttons and text fields",
             keyPoints: ["Button handling", "Input validation", "Event listeners"],
@@ -219,7 +219,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-6",
             title: "Intents & Intent Filters",
-            url: "/App Development/6a_Intents_Intent_Filters.mp4",
+            url: "https://drive.google.com/file/d/1u6KiSSm15drEkyqABZPFg-YD0dW0WeoV/preview",
             duration: 1800,
             summary: "Learn Android navigation between screens",
             keyPoints: ["Navigation concepts", "Intent system", "Screen transitions"],
@@ -228,7 +228,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-7",
             title: "RecyclerView & Lists",
-            url: "/App Development/7a_RecyclerView_Lists.mp4",
+            url: "https://drive.google.com/file/d/1Z1yrdn-oBhMEK67FQUndSkWiynSBUnaq/preview",
             duration: 1800,
             summary: "Master Android activities and intent system",
             keyPoints: ["Activity lifecycle", "Intent types", "Component communication"],
@@ -237,7 +237,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-8",
             title: "Simple Calculator App (Project)",
-            url: "/App Development/8a_Simple_Calculator_App_Project.mp4",
+            url: "https://drive.google.com/file/d/1PpPFDKbAUZ-VFf6zx7h8XEKdJdV6-9xi/preview",
             duration: 1800,
             summary: "Build a complete calculator application",
             keyPoints: ["App architecture", "Button logic", "Display management"],
@@ -246,7 +246,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-9",
             title: "Android App UI Design Basics",
-            url: "/App Development/9a_Android_App_UI_Design_Basics.mp4",
+            url: "https://drive.google.com/file/d/16zxv8kU_Kn0Xq18ew26UpInn2PMDGKLx/preview",
             duration: 1800,
             summary: "Learn data storage options in Android",
             keyPoints: ["SharedPreferences", "Database basics", "File storage"],
@@ -255,7 +255,7 @@ export const courses: Course[] = [
           {
             id: "app-dev-10",
             title: "Build APK & Run on Mobile Device",
-            url: "/App Development/10a_Build_APK_Run_on_Mobile_Device.mp4",
+            url: "https://drive.google.com/file/d/1iG87OiC11gt2wyID9Aa8diQpKsEw5qcc/preview",
             duration: 1800,
             summary: "Build a complete beginner Android project",
             keyPoints: ["Project planning", "Implementation", "Real-world app"],
@@ -299,7 +299,7 @@ export const courses: Course[] = [
           {
             id: "game-dev-1",
             title: "Introduction to Game Development",
-            url: "/Game Development/1) Introduction_to_Game_Development_480P.mp4",
+            url: "https://drive.google.com/file/d/1WoVHpf9q2NK7eTwfrMy7fs-3ABX94fA_/preview",
             duration: 9030,
             summary: "Introduction to game development concepts and principles",
             keyPoints: ["Game development fundamentals", "Industry overview", "Development pipeline"],
@@ -308,7 +308,7 @@ export const courses: Course[] = [
           {
             id: "game-dev-2",
             title: "Learn Unity - The Most Basic Tutorial",
-            url: "/Game Development/2) LEARN_UNITY_-_The_Most_BASIC_TUTORIAL.mp4",
+            url: "https://drive.google.com/file/d/1Unnk9HNibPAhY91b0kTU4D4W5ueV8QTa/preview",
             duration: 7500,
             summary: "Overview of popular game engines and their features",
             keyPoints: ["Engine comparison", "Features overview", "Selection criteria"],

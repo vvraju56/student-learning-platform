@@ -100,7 +100,7 @@ function updateMonitoringUI() {
         
         monitoringIndicator.classList.remove('inactive');
         monitoringIndicator.classList.add('active');
-        monitoringIndicator.innerHTML = '<i class="fas fa-brain"></i><span>AI Monitoring: Active</span>';
+        monitoringIndicator.innerHTML = '<i class="fas fa-brain"></i><span>Face Monitoring: Active</span>';
     } else {
         btn.innerHTML = '<i class="fas fa-play"></i> Start Monitoring';
         btn.classList.remove('stop');
@@ -110,7 +110,7 @@ function updateMonitoringUI() {
         
         monitoringIndicator.classList.remove('active');
         monitoringIndicator.classList.add('inactive');
-        monitoringIndicator.innerHTML = '<i class="fas fa-brain"></i><span>AI Monitoring: Inactive</span>';
+        monitoringIndicator.innerHTML = '<i class="fas fa-brain"></i><span>Face Monitoring: Inactive</span>';
     }
 }
 

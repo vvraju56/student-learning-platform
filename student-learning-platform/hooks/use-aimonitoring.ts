@@ -34,7 +34,7 @@ const VIOLATION_LIMIT = 10
 const DETECTION_INTERVAL = 400 // 400ms - every 0.4 seconds
 const FIREBASE_SAVE_INTERVAL = 30000 // 30 seconds
 
-export function useAIMonitoring(videoRef: React.RefObject<HTMLIFrameElement>): MonitoringHook {
+export function useFaceMonitoring(videoRef: React.RefObject<HTMLIFrameElement>): MonitoringHook {
   // Core monitoring states
   const [monitoringActive, setMonitoringActive] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
@@ -273,7 +273,7 @@ export function useAIMonitoring(videoRef: React.RefObject<HTMLIFrameElement>): M
       // Set initial video playing state
       setVideoPlaying(true)
 
-      console.log('🎯 AI Monitoring started')
+      console.log('🎯 Face Monitoring started')
     } catch (error) {
       console.error('❌ Failed to start monitoring:', error)
     }
@@ -312,7 +312,7 @@ export function useAIMonitoring(videoRef: React.RefObject<HTMLIFrameElement>): M
     // Save final progress
     saveProgressToFirebase()
 
-    console.log('⏹️ AI Monitoring stopped')
+    console.log('⏹️ Face Monitoring stopped')
   }, [])
 
   // Save progress to Firebase

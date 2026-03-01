@@ -84,7 +84,7 @@ export function AiMonitor({ userId }: { userId: string }) {
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
-          AI Monitoring
+          Face Monitoring
           <Badge variant={status === "Active" ? "default" : "secondary"}>{status}</Badge>
         </CardTitle>
       </CardHeader>

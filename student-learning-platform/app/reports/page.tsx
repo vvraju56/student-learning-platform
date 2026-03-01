@@ -438,7 +438,7 @@ export default function ReportsPage() {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-400">AI Monitoring</p>
+                  <p className="text-sm text-gray-400">Face Monitoring</p>
                   <p className="text-2xl font-bold">
                     {displayData.live.monitoring ? "Active" : "Inactive"}
                   </p>

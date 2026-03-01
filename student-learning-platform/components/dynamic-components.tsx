@@ -18,18 +18,18 @@ export const DynamicVideoPlayer = dynamic(
   }
 )
 
-export const DynamicAIComponent = dynamic(
+export const DynamicFaceMonitoringComponent = dynamic(
   () => import('./ai-monitoring-component'),
   {
-    loading: () => <div className="p-4 text-center">Loading AI monitoring...</div>,
+    loading: () => <div className="p-4 text-center">Loading Face monitoring...</div>,
     ssr: false,
   }
 )
 
-export const DynamicAIComponentV2 = dynamic(
+export const DynamicFaceMonitoringComponentV2 = dynamic(
   () => import('./ai-monitoring-component-v2'),
   {
-    loading: () => <div className="p-4 text-center">Loading AI monitoring...</div>,
+    loading: () => <div className="p-4 text-center">Loading Face monitoring...</div>,
     ssr: false,
   }
 )

@@ -9,7 +9,7 @@ import {
   Eye, User, Monitor, Activity
 } from "lucide-react"
 
-export function AIMonitoringComponent({ videoRef }: { videoRef: React.RefObject<any> }) {
+export function FaceMonitoringComponent({ videoRef }: { videoRef: React.RefObject<any> }) {
   const [state, setState] = useState({
     isMonitoring: false,
     cameraActive: false,

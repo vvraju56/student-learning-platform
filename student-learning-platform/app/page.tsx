@@ -91,7 +91,7 @@ export default function Home() {
               {/* Card 2 */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-6 hover:border-cyan-500/50 transition-all duration-300">
                 <div className="text-4xl mb-4">📷</div>
-                <h3 className="text-xl font-bold mb-3">AI Monitoring System</h3>
+                <h3 className="text-xl font-bold mb-3">Face Monitoring System</h3>
                 <p className="text-gray-400 text-sm">
                   Automatically starts when a course video is played. Monitors camera status, face detection, attention & focus, and tab switching. All AI processing runs locally in the browser using TensorFlow.js.
                 </p>

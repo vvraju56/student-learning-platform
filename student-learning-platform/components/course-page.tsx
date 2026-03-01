@@ -109,13 +109,13 @@ export function CoursePage({ user, profile }: CoursePageProps) {
     })
   }
 
-  // STEP 3: START AI MONITORING AUTOMATICALLY
-  const startAIMonitoring = async () => {
+  // STEP 3: START FACE MONITORING AUTOMATICALLY
+  const startFaceMonitoring = async () => {
     setIsInitializing(true)
     setCameraError(null)
     
     try {
-      console.log('🚀 Starting MANDATORY AI Monitoring...')
+      console.log('🚀 Starting MANDATORY Face Monitoring...')
       
       // Request camera permission (MANDATORY)
       const cameraAllowed = await requestCameraPermission()
@@ -144,12 +144,12 @@ export function CoursePage({ user, profile }: CoursePageProps) {
       await alertSystem.addAlert({
         type: 'attention',
         severity: 'low',
-        message: 'AI Monitoring started successfully',
+        message: 'Face Monitoring started successfully',
         courseId: pendingCourse || 'unknown',
         videoId: 'course-start'
       })
       
-      console.log('✅ MANDATORY AI Monitoring started successfully')
+      console.log('✅ MANDATORY Face Monitoring started successfully')
       
       // Navigate to course videos
       if (pendingCourse) {
@@ -161,7 +161,7 @@ export function CoursePage({ user, profile }: CoursePageProps) {
       setCourseBlocked(false)
       
     } catch (error) {
-      console.error('❌ AI Monitoring failed:', error)
+      console.error('❌ Face Monitoring failed:', error)
       blockCourseStart()
       setIsInitializing(false)
     }
@@ -185,7 +185,7 @@ export function CoursePage({ user, profile }: CoursePageProps) {
     
     // Check if monitoring is already active
     if (faceDetection.isWebcamActive && postureDetection.isConnected) {
-      console.log('✅ AI Monitoring already active - proceeding to course')
+      console.log('✅ Face Monitoring already active - proceeding to course')
       router.push(`/courses/${courseId}/videos`)
       return
     }
@@ -314,7 +314,7 @@ export function CoursePage({ user, profile }: CoursePageProps) {
                   {faceDetection.isWebcamActive ? (
                     <>
                       <Camera className="w-3 h-3 text-success" />
-                      <strong>AI Monitoring Active</strong>
+                      <strong>Face Monitoring Active</strong>
                     </>
                   ) : (
                     <>
@@ -492,7 +492,7 @@ export function CoursePage({ user, profile }: CoursePageProps) {
               <div className="spinner-border text-primary mb-3" role="status">
                 <span className="visually-hidden">Initializing...</span>
               </div>
-              <h4 className="text-white mb-3">Initializing MANDATORY AI Monitoring...</h4>
+              <h4 className="text-white mb-3">Initializing MANDATORY Face Monitoring...</h4>
               <p className="text-muted mb-4">
                 Setting up required monitoring systems...
               </p>
@@ -538,7 +538,7 @@ export function CoursePage({ user, profile }: CoursePageProps) {
                 </Button>
                 <Button 
                   variant="success" 
-                  onClick={startAIMonitoring}
+                  onClick={startFaceMonitoring}
                   className="d-flex align-items-center gap-2"
                 >
                   <Camera className="w-4 h-4" />

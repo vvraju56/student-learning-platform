@@ -71,17 +71,49 @@ const quizData: Record<string, { mcqs: typeof webDevMCQs; coding: typeof webDevC
 }
 
 const styles: any = {
-  page: { minHeight: "100vh", background: "#0b0f14", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" },
-  card: { background: "#111827", padding: 32, borderRadius: 16, maxWidth: 500, width: "100%", margin: "0 auto" },
+  page: { minHeight: "100vh", background: "#0b0f14", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", padding: "20px" },
+  card: { background: "#111827", padding: "32px 24px", borderRadius: 16, maxWidth: 500, width: "100%", margin: "0 auto" },
   video: { width: "100%", aspectRatio: "4/3", borderRadius: 12, objectFit: "cover", marginBottom: 15 },
   btn: { width: "100%", padding: 14, background: "#3b82f6", border: "none", color: "#fff", borderRadius: 10, cursor: "pointer", fontWeight: 600, marginTop: 10 },
-  header: { position: "sticky", top: 0, background: "rgba(15,23,42,0.95)", padding: "15px 25px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1f2937" },
-  layout: { display: "grid", gridTemplateColumns: "280px 1fr", minHeight: "calc(100vh - 70px)" },
-  sidebar: { background: "#0f172a", padding: 25, borderRight: "1px solid #1f2937" },
-  main: { padding: 30, maxWidth: 900, margin: "0 auto" },
-  questionBox: { background: "#111827", border: "1px solid #1f2937", borderRadius: 20, padding: 30, marginBottom: 25 },
+  header: { position: "sticky", top: 0, background: "rgba(15,23,42,0.95)", padding: "15px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #1f2937", flexWrap: "wrap", gap: 15 },
+  layout: { display: "grid", gridTemplateColumns: "1fr", minHeight: "calc(100vh - 70px)", gap: 20 },
+  sidebar: { background: "#0f172a", padding: 20, borderRight: "1px solid #1f2937" },
+  main: { padding: 20, maxWidth: 900, margin: "0 auto", width: "100%" },
+  questionBox: { background: "#111827", border: "1px solid #1f2937", borderRadius: 20, padding: "24px 20px", marginBottom: 25 },
   focused: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 20, background: "rgba(34,197,94,0.15)", color: "#22c55e", border: "1px solid #22c55e" },
   warning: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 20, background: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid #ef4444" },
+}
+
+// Responsive styles as CSS string
+const responsiveStyles = `
+  @media (min-width: 768px) {
+    .quiz-layout { grid-template-columns: 280px 1fr !important; }
+    .quiz-sidebar { padding: 25px !important; }
+    .quiz-main { padding: 30px !important; }
+    .quiz-card { padding: 32px !important; }
+    .quiz-question-box { padding: 30px !important; }
+  }
+  @media (max-width: 767px) {
+    .quiz-header { flex-direction: column !important; align-items: stretch !important; }
+    .quiz-header > div:last-child { flex-wrap: wrap !important; justify-content: center !important; }
+    .quiz-question-grid { grid-template-columns: repeat(5, 1fr) !important; }
+    .quiz-coding-grid { grid-template-columns: repeat(2, 1fr) !important; }
+    .quiz-option { flex-direction: column !important; text-align: left !important; }
+    .quiz-nav-buttons { flex-direction: column !important; gap: 10px !important; }
+    .quiz-nav-buttons button { width: 100% !important; }
+  }
+  @media (max-width: 480px) {
+    .quiz-question-grid { grid-template-columns: repeat(5, 1fr) !important; gap: 6px !important; }
+    .quiz-coding-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 6px !important; }
+    .quiz-status-bar { flex-direction: column !important; gap: 8px !important; }
+  }
+`
+
+// Inject responsive styles
+if (typeof window !== 'undefined') {
+  const styleEl = document.createElement('style')
+  styleEl.textContent = responsiveStyles
+  document.head.appendChild(styleEl)
 }
 
 export default function QuizPage() {
@@ -395,7 +427,7 @@ export default function QuizPage() {
     
     return (
       <div style={{ ...styles.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={styles.card}>
+        <div className="quiz-card" style={styles.card}>
           <h2 style={{ fontSize: 32, color: percentage >= 60 ? "#22c55e" : "#ef4444", marginBottom: 20 }}>
             {percentage >= 60 ? "PASSED" : "NEEDS REVIEW"}
           </h2>
@@ -412,7 +444,7 @@ export default function QuizPage() {
   if (quizState === "ready") {
     return (
       <div style={{ ...styles.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={styles.card}>
+      <div className="quiz-card" style={styles.card}>
           <h2 style={{ fontSize: 24, marginBottom: 8 }}>{quiz.title}</h2>
           <p style={{ color: "#94a3b8", marginBottom: 20 }}>{quiz.subtitle}</p>
           
@@ -454,7 +486,7 @@ export default function QuizPage() {
     if (!cameraActive) {
       return (
         <div style={{ ...styles.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={styles.card}>
+          <div className="quiz-card" style={styles.card}>
             <h2 style={{ fontSize: 24, color: "#ef4444", marginBottom: 15 }}>
               ⚠️ Camera Not Active!
             </h2>
@@ -473,7 +505,7 @@ export default function QuizPage() {
 
     return (
       <div style={styles.page}>
-        <header style={styles.header}>
+      <header className="quiz-header" style={styles.header}>
           <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
             <button onClick={() => { setQuizState("ready"); setBlockUI(false); setNoFaceCountdown(null); setCurrentQuestion(0); }} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "10px 18px", borderRadius: 10, cursor: "pointer" }}>← Back</button>
             <span style={{ fontSize: 16, fontWeight: 600 }}>Section A: MCQs</span>
@@ -494,11 +526,11 @@ export default function QuizPage() {
           </div>
         </header>
 
-        <div style={styles.layout}>
-          <aside style={styles.sidebar}>
+        <div className="quiz-layout" style={styles.layout}>
+          <aside className="quiz-sidebar" style={styles.sidebar}>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20, marginBottom: 20 }}>
               <div style={{ fontSize: 12, textTransform: "uppercase", color: "#94a3b8", marginBottom: 15 }}>Questions</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+              <div className="quiz-question-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {quiz.mcqs.map((_, idx) => (
                   <div key={idx} onClick={() => setCurrentQuestion(idx)} style={{ 
                     aspectRatio: 1, display: "flex", alignItems: "center", justifyContent: "center", 
@@ -509,7 +541,7 @@ export default function QuizPage() {
               </div>
             </div>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>AI Monitoring</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
@@ -522,8 +554,8 @@ export default function QuizPage() {
             </div>
           </aside>
 
-          <main style={styles.main}>
-            <div style={styles.questionBox}>
+          <main className="quiz-main" style={styles.main}>
+            <div className="quiz-question-box" style={styles.questionBox}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20 }}>
                 <span style={{ background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: 13, fontWeight: 600 }}>Q{currentQuestion + 1} of {quiz.mcqs.length}</span>
                 <span style={{ color: "#94a3b8", fontSize: 13 }}>1 mark</span>
@@ -545,7 +577,7 @@ export default function QuizPage() {
                 ))}
               </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginTop: 30 }}>
+            <div className="quiz-nav-buttons" style={{ display: "flex", justifyContent: "space-between", marginTop: 30 }}>
               <button onClick={() => setCurrentQuestion(c => c - 1)} disabled={currentQuestion === 0} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: currentQuestion === 0 ? "not-allowed" : "pointer", opacity: currentQuestion === 0 ? 0.4 : 1 }}>← Previous</button>
               {currentQuestion === quiz.mcqs.length - 1 ? (
                 <button onClick={handleFinishMCQ} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "14px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Proceed to Coding →</button>
@@ -553,7 +585,7 @@ export default function QuizPage() {
                 <button onClick={() => setCurrentQuestion(c => c + 1)} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: "pointer" }}>Next →</button>
               )}
             </div>
-          </main>
+            </main>
         </div>
       </div>
     )
@@ -563,7 +595,7 @@ export default function QuizPage() {
     if (!cameraActive) {
       return (
         <div style={{ ...styles.page, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={styles.card}>
+          <div className="quiz-card" style={styles.card}>
             <h2 style={{ fontSize: 24, color: "#ef4444", marginBottom: 15 }}>
               ⚠️ Camera Not Active!
             </h2>
@@ -571,18 +603,18 @@ export default function QuizPage() {
               Camera is required to continue the quiz.
             </p>
             <button onClick={() => { setQuizState("ready"); setBlockUI(false); setNoFaceCountdown(null); setCurrentQuestion(0); }} style={styles.btn}>
-              ← Return to Setup
-            </button>
+                ← Return to Setup
+              </button>
+            </div>
           </div>
-        </div>
-      )
-    }
-
-    const cq = quiz.coding[currentQuestion]
-
-    return (
-      <div style={styles.page}>
-        <header style={styles.header}>
+        )
+      }
+    
+      const cq = quiz.coding[currentQuestion]
+    
+      return (
+        <div style={styles.page}>
+        <header className="quiz-header" style={styles.header}>
           <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
             <button onClick={() => { setQuizState("ready"); setBlockUI(false); setNoFaceCountdown(null); setCurrentQuestion(0); }} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "10px 18px", borderRadius: 10, cursor: "pointer" }}>← Back</button>
             <span style={{ fontSize: 16, fontWeight: 600 }}>Section B: Coding</span>
@@ -602,11 +634,11 @@ export default function QuizPage() {
           </div>
         </header>
 
-        <div style={styles.layout}>
-          <aside style={styles.sidebar}>
+        <div className="quiz-layout" style={styles.layout}>
+          <aside className="quiz-sidebar" style={styles.sidebar}>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20, marginBottom: 20 }}>
               <div style={{ fontSize: 12, textTransform: "uppercase", color: "#94a3b8", marginBottom: 15 }}>Questions</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+              <div className="quiz-coding-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                 {quiz.coding.map((_, idx) => (
                   <div key={idx} onClick={() => setCurrentQuestion(idx)} style={{ 
                     aspectRatio: 1, display: "flex", alignItems: "center", justifyContent: "center", 
@@ -617,7 +649,7 @@ export default function QuizPage() {
               </div>
             </div>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>AI Monitoring</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
@@ -660,16 +692,16 @@ export default function QuizPage() {
                   style={{ width: "100%", minHeight: 200, background: "#0f172a", border: "2px solid #1f2937", borderRadius: 12, padding: 15, color: "#e2e8f0", fontFamily: "monospace", fontSize: 14, resize: "vertical" }}
                 />
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 30 }}>
+              <div className="quiz-nav-buttons" style={{ display: "flex", justifyContent: "space-between", marginTop: 30 }}>
                 <button onClick={() => setCurrentQuestion(c => c - 1)} disabled={currentQuestion === 0} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: currentQuestion === 0 ? "not-allowed" : "pointer", opacity: currentQuestion === 0 ? 0.4 : 1 }}>← Previous</button>
                 {currentQuestion === quiz.coding.length - 1 ? (
                   <button onClick={handleSubmit} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "14px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer" }}>Submit Quiz</button>
                 ) : (
                   <button onClick={() => setCurrentQuestion(c => c + 1)} style={{ background: "#111827", border: "1px solid #1f2937", color: "#fff", padding: "14px 28px", borderRadius: 10, cursor: "pointer" }}>Next →</button>
-                )}
-              </div>
+              )}
             </div>
-          </main>
+            </div>
+            </main>
         </div>
       </div>
     )

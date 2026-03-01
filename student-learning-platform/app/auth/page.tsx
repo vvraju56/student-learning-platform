@@ -4,7 +4,7 @@ import React, { useState, useTransition, Suspense } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { auth } from "@/lib/firebase"
-import { signInWithEmailAndPassword } from "firebase/auth"
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth"
 import { signupWithGmail } from "@/app/actions/auth"
 import { requestOTP, verifyEmailOTP, resendOTP } from "@/app/actions/verify"
 
@@ -55,6 +55,13 @@ function AuthPageContent() {
 
   const handleRegister = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    
+    if (pendingRegister) {
+      setVerifyMode(true)
+      setRegisterError("⚠️ Please verify your email first! Check for OTP in your inbox.")
+      return
+    }
+    
     setRegisterError(null)
     setSuccess(false)
 
@@ -67,13 +74,28 @@ function AuthPageContent() {
       return
     }
 
-    // Open OTP modal - user MUST verify before signup completes
     setVerifyEmail(email)
+    setPendingRegister({ username, email, password })
     setVerifyMode(true)
     setOtpSent(false)
     setOtpError(null)
-    setPendingRegister({ username, email, password })
-    setRegisterError("⚠️ VERIFICATION REQUIRED: Check your email for OTP code!")
+    
+    setOtpLoading(true)
+    try {
+      const formData = new FormData()
+      formData.append("email", email)
+      const otpResult = await requestOTP(formData)
+      if (otpResult?.success) {
+        setOtpSent(true)
+        setRegisterError("✓ OTP sent to " + email + "! Check your email and enter the code in the popup.")
+      } else {
+        setRegisterError(otpResult?.error || "Failed to send OTP. Please try again.")
+      }
+    } catch (error) {
+      setRegisterError("Error sending OTP. Please try again.")
+    }
+    setOtpLoading(false)
+    return false
   }
 
   const handleVerifyOTPForRegister = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -94,7 +116,10 @@ function AuthPageContent() {
 
       const signupResult = await signupWithGmail(registerData)
       
-      if (signupResult?.error) {
+      if (signupResult?.needsVerification) {
+        setRegisterError(signupResult.message || "Please verify your email first")
+        setOtpSuccess(false)
+      } else if (signupResult?.error) {
         setRegisterError(signupResult.error)
         setOtpSuccess(false)
       } else if (signupResult?.success) {
@@ -177,6 +202,29 @@ function AuthPageContent() {
     setVerifyMode(true)
     setOtpSent(false)
     setOtpError(null)
+  }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!loginForm.email) {
+      setLoginError("Please enter your email address first")
+      return
+    }
+    setLoginError(null)
+    setLoading(true)
+    try {
+      await sendPasswordResetEmail(auth, loginForm.email)
+      setLoginError("Password reset email sent! Check your inbox.")
+    } catch (err: any) {
+      if (err.code === "auth/user-not-found") {
+        setLoginError("No account found with this email")
+      } else if (err.code === "auth/invalid-email") {
+        setLoginError("Invalid email address")
+      } else {
+        setLoginError("Failed to send reset email. Please try again.")
+      }
+    }
+    setLoading(false)
   }
 
   return (
@@ -402,6 +450,8 @@ function AuthPageContent() {
           text-align: center;
           margin-top: 15px;
           font-size: 14px;
+          display: block;
+          visibility: visible;
         }
 
         .forgot-link a {
@@ -414,6 +464,7 @@ function AuthPageContent() {
           border-radius: 20px;
           display: inline-block;
           transition: all 0.3s;
+          visibility: visible;
         }
 
         .forgot-link a:hover {
@@ -661,13 +712,29 @@ function AuthPageContent() {
             <button type="submit" className="submit-button" disabled={loading}>
               {loading ? "Signing in..." : "Sign In"}
             </button>
-          </form>
 
-          <p className="forgot-link">
-            <a onClick={() => openVerifyMode("")}>Forgot Password?</a>
-          </p>
+            <div style={{ textAlign: "center", marginTop: "15px" }}>
+              <button 
+                type="button"
+                onClick={handleForgotPassword}
+                style={{
+                  background: "transparent",
+                  border: "1px solid #00d4ff",
+                  borderRadius: "20px",
+                  color: "#00d4ff",
+                  padding: "8px 20px",
+                  fontSize: "14px",
+                  cursor: "pointer",
+                  fontFamily: "'Poppins', sans-serif"
+                }}
+              >
+                Forgot Password?
+              </button>
+            </div>
 
-          <p className="switch-link">
+            </form>
+
+            <p className="switch-link">
             Don't have an account? 
             <a onClick={() => setIsToggled(true)}>Sign Up</a>
           </p>
@@ -748,7 +815,12 @@ function AuthPageContent() {
       {verifyMode && (
         <div className="verify-modal-overlay">
           <div className="verify-modal">
-            <button className="close-btn" onClick={() => setVerifyMode(false)}>×</button>
+            <button className="close-btn" onClick={() => {
+              setVerifyMode(false)
+              setPendingRegister(null)
+              setOtpSent(false)
+              setRegisterError(null)
+            }}>×</button>
             
             <h2>Email Verification</h2>
             <p className="verify-desc">
