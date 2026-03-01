@@ -29,6 +29,7 @@ function AuthPageContent() {
 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [registerForm, setRegisterForm] = useState({ username: "", email: "", password: "" })
+  const [pendingRegister, setPendingRegister] = useState<{username: string, email: string, password: string} | null>(null)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,24 +58,59 @@ function AuthPageContent() {
     setRegisterError(null)
     setSuccess(false)
 
+    const username = registerForm.username
+    const email = registerForm.email
+    const password = registerForm.password
+
+    if (!username || !email || !password) {
+      setRegisterError("Please fill in all fields")
+      return
+    }
+
+    setVerifyEmail(email)
+    setVerifyMode(true)
+    setOtpSent(false)
+    setOtpError(null)
+    setPendingRegister({ username, email, password })
+  }
+
+  const handleVerifyOTPForRegister = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setOtpLoading(true)
+    setOtpError(null)
+
     const formData = new FormData(e.currentTarget)
-    
-    startTransition(async () => {
-      try {
-        const result = await signupWithGmail(formData)
-        if (result?.error) {
-          setRegisterError(result.error)
-        } else if (result?.success) {
-          setSuccess(true)
-          setTimeout(() => {
-            setIsToggled(false)
-            setSuccess(false)
-          }, 2000)
-        }
-      } catch (err) {
-        setRegisterError("Something went wrong. Please try again.")
+    formData.append("email", verifyEmail)
+
+    const result = await verifyEmailOTP(formData)
+
+    if (result?.success && pendingRegister) {
+      const registerData = new FormData()
+      registerData.append("username", pendingRegister.username)
+      registerData.append("email", pendingRegister.email)
+      registerData.append("password", pendingRegister.password)
+
+      const signupResult = await signupWithGmail(registerData)
+      
+      if (signupResult?.error) {
+        setRegisterError(signupResult.error)
+        setOtpSuccess(false)
+      } else if (signupResult?.success) {
+        setOtpSuccess(true)
+        setSuccess(true)
+        setPendingRegister(null)
+        setTimeout(() => {
+          setVerifyMode(false)
+          setOtpSent(false)
+          setOtpSuccess(false)
+          setVerifyEmail("")
+          setIsToggled(false)
+        }, 2000)
       }
-    })
+    } else {
+      setOtpError(result?.error || "Failed to verify OTP")
+    }
+    setOtpLoading(false)
   }
 
   const handleSendOTP = async (e: React.FormEvent) => {
@@ -618,7 +654,7 @@ function AuthPageContent() {
           </form>
 
           <p className="forgot-link">
-            <a onClick={() => openVerifyMode(loginForm.email || "")}>Forgot Password?</a>
+            <a onClick={() => openVerifyMode("")}>Forgot Password?</a>
           </p>
 
           <p className="switch-link">
@@ -708,7 +744,9 @@ function AuthPageContent() {
             <p className="verify-desc">
               {otpSent 
                 ? `Enter the 6-digit OTP sent to ${verifyEmail}`
-                : `Enter your email to receive verification code`
+                : pendingRegister 
+                  ? `Enter your email to verify for signup`
+                  : `Enter your email to receive verification code`
               }
             </p>
 
@@ -731,7 +769,7 @@ function AuthPageContent() {
                 </button>
               </form>
             ) : (
-              <form onSubmit={handleVerifyOTP}>
+              <form onSubmit={pendingRegister ? handleVerifyOTPForRegister : handleVerifyOTP}>
                 <div className="field-wrapper">
                   <input
                     type="text"
@@ -746,7 +784,7 @@ function AuthPageContent() {
                   <label>Enter 6-digit OTP</label>
                 </div>
                 <button type="submit" className="submit-button" disabled={otpLoading}>
-                  {otpLoading ? "Verifying..." : "Verify OTP"}
+                  {otpLoading ? "Verifying..." : pendingRegister ? "Verify & Sign Up" : "Verify OTP"}
                 </button>
                 <button type="button" className="resend-btn" onClick={handleResendOTP}>
                   Resend OTP
