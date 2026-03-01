@@ -3,11 +3,10 @@
 
 import { useState, useEffect } from 'react'
 import { auth } from '@/lib/firebase'
-import { getUserProgressFromFirebase, resetAllProgress } from '@/lib/firebase'
+import { getUserProgressFromFirebase } from '@/lib/firebase'
 
 export default function FirebaseTest() {
   const [testResults, setTestResults] = useState<string[]>([])
-  const [isResetting, setIsResetting] = useState(false)
 
   const runFirebaseTest = async () => {
     if (!auth.currentUser) {
@@ -63,30 +62,6 @@ export default function FirebaseTest() {
     setTestResults(results)
   }
 
-  const handleResetProgress = async () => {
-    if (!auth.currentUser) {
-      setTestResults(['❌ No user logged in'])
-      return
-    }
-
-    if (!confirm('Are you sure you want to reset ALL progress? This cannot be undone!')) {
-      return
-    }
-
-    setIsResetting(true)
-    const success = await resetAllProgress(auth.currentUser.uid)
-    
-    if (success) {
-      setTestResults(['🗑️ All progress has been reset!'])
-      alert('Progress reset successfully!')
-    } else {
-      setTestResults(['❌ Failed to reset progress'])
-    }
-    setIsResetting(false)
-    
-    runFirebaseTest()
-  }
-
   useEffect(() => {
     runFirebaseTest()
   }, [])
@@ -130,13 +105,6 @@ export default function FirebaseTest() {
                 className="w-full bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors"
               >
                 🔄 Refresh Firebase Test
-              </button>
-              <button 
-                onClick={handleResetProgress}
-                disabled={isResetting}
-                className="w-full bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
-              >
-                {isResetting ? '⏳ Resetting...' : '🗑️ Reset All Progress'}
               </button>
               <button 
                 onClick={() => window.location.href = '/dashboard'}
