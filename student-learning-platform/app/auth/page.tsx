@@ -399,16 +399,24 @@ function AuthPageContent() {
         .forgot-link {
           text-align: center;
           margin-top: 15px;
+          font-size: 14px;
         }
 
         .forgot-link a {
           color: #00d4ff;
           cursor: pointer;
           font-size: 14px;
+          text-decoration: none;
+          padding: 8px 16px;
+          border: 1px solid #00d4ff;
+          border-radius: 20px;
+          display: inline-block;
+          transition: all 0.3s;
         }
 
         .forgot-link a:hover {
           text-decoration: underline;
+          background: rgba(0, 212, 255, 0.1);
         }
 
         .welcome-panel {
