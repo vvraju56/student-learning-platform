@@ -46,6 +46,11 @@ export const saveVideoProgressToFirebase = async (userId: string, courseId: stri
       return false
     }
     
+    if (!userId) {
+      console.error('No userId provided - cannot save progress')
+      return false
+    }
+    
     return await safeFirebaseWrite(async () => {
       await set(ref(realtimeDb, `users/${userId}/learning/courses/${courseId}/videos/${videoId}`), {
         lastWatchedTime: data.lastWatchedTime || 0,
@@ -57,7 +62,8 @@ export const saveVideoProgressToFirebase = async (userId: string, courseId: stri
         autoPauseCount: data.autoPauseCount || 0,
         lastWatchTime: Date.now(),
         courseId: courseId,
-        videoId: videoId
+        videoId: videoId,
+        savedByUser: userId
       })
       return true;
     });
@@ -72,12 +78,20 @@ export const saveVideoProgressToFirebase = async (userId: string, courseId: stri
 
 export const saveCourseProgressToFirebase = async (userId: string, courseId: string, progress: number, completedVideos: number, totalVideos: number) => {
   try {
+    if (!userId) {
+      console.error('No userId provided - cannot save progress')
+      return
+    }
+    
     await set(ref(realtimeDb, `users/${userId}/learning/courses/${courseId}`), {
       progress: progress,
       completedVideos: completedVideos,
       totalVideos: totalVideos,
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
+      savedByUser: userId
     })
+    
+    console.log('✅ Course progress saved for user:', userId)
   } catch (error) {
     console.error('Error saving course progress to Firebase:', error)
   }

@@ -65,20 +65,20 @@ export function useVideoProgressTracking(
   
   const userId = auth.currentUser?.uid
   const autoSaveInterval = options.autoSaveInterval || 300 // Save every 5 minutes (300 seconds) - FREE TIER SAFE
-
-  // Firebase paths
-  const getVideoPath = () => `users/${userId}/videos/${courseId}_${videoId}`
-  const getCoursePath = () => `users/${userId}/courses/${courseId}`
+  
+  // Firebase paths - validate userId
+  const getVideoPath = () => userId ? `users/${userId}/videos/${courseId}_${videoId}` : null
+  const getCoursePath = () => userId ? `users/${userId}/courses/${courseId}` : null
 
   // Load existing progress from Firebase
   const loadProgress = useCallback(async () => {
-    if (!userId) return
+    if (!userId || !getVideoPath()) return
 
     try {
       setIsLoading(true)
       
       // Load video progress
-      const videoRef = ref(window.realtimeDb, getVideoPath())
+      const videoRef = ref(window.realtimeDb, getVideoPath()!)
       const videoSnapshot = await get(videoRef)
       
       if (videoSnapshot.exists()) {
@@ -97,7 +97,7 @@ export function useVideoProgressTracking(
       }
 
       // Load course progress
-      const courseRef = ref(window.realtimeDb, getCoursePath())
+      const courseRef = ref(window.realtimeDb, getCoursePath()!)
       const courseSnapshot = await get(courseRef)
       
       if (courseSnapshot.exists()) {
@@ -113,7 +113,7 @@ export function useVideoProgressTracking(
 
   // Save video progress to Firebase (Firebase-safe)
   const saveVideoProgress = useCallback(async (force: boolean = false) => {
-    if (!userId) return false
+    if (!userId || !getVideoPath()) return false
 
     const now = Date.now()
     
@@ -126,13 +126,15 @@ export function useVideoProgressTracking(
       const videoData = {
         ...progress,
         violations: monitoring.getViolationSummary().violations,
-        lastUpdated: now
+        lastUpdated: now,
+        savedAt: Date.now(),
+        savedByUser: userId
       }
 
-      await set(ref(window.realtimeDb, getVideoPath()), videoData)
+      await set(ref(window.realtimeDb, getVideoPath()!), videoData)
       lastSaveTime.current = now
       
-      console.log('✅ Video progress saved')
+      console.log('✅ Video progress saved for user:', userId)
       options.onProgressUpdate?.(videoData)
       
       return true
@@ -144,12 +146,14 @@ export function useVideoProgressTracking(
 
   // Save course progress to Firebase
   const saveCourseProgress = useCallback(async (updatedCourseProgress: CourseProgress) => {
-    if (!userId) return false
+    if (!userId || !getCoursePath()) return false
 
     try {
-      await set(ref(window.realtimeDb, getCoursePath()), {
+      await set(ref(window.realtimeDb, getCoursePath()!), {
         ...updatedCourseProgress,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
+        savedAt: Date.now(),
+        savedByUser: userId
       })
       
       setCourseProgress(updatedCourseProgress)
@@ -161,6 +165,7 @@ export function useVideoProgressTracking(
       // Update overall progress after course update
       await updateOverallProgress()
       
+      console.log('✅ Course progress saved for user:', userId)
       return true
     } catch (error) {
       console.error('Error saving course progress:', error)
