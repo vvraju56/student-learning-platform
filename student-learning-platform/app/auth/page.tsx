@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { auth } from "@/lib/firebase"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { signupWithGmail } from "@/app/actions/auth"
+import { requestOTP, verifyEmailOTP, resendOTP } from "@/app/actions/verify"
 
 function AuthPageContent() {
   const router = useRouter()
@@ -18,6 +19,13 @@ function AuthPageContent() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  
+  const [verifyMode, setVerifyMode] = useState(false)
+  const [verifyEmail, setVerifyEmail] = useState("")
+  const [otpSent, setOtpSent] = useState(false)
+  const [otpError, setOtpError] = useState<string | null>(null)
+  const [otpSuccess, setOtpSuccess] = useState(false)
+  const [otpLoading, setOtpLoading] = useState(false)
 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [registerForm, setRegisterForm] = useState({ username: "", email: "", password: "" })
@@ -67,6 +75,70 @@ function AuthPageContent() {
         setRegisterError("Something went wrong. Please try again.")
       }
     })
+  }
+
+  const handleSendOTP = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setOtpLoading(true)
+    setOtpError(null)
+
+    const formData = new FormData()
+    formData.append("email", verifyEmail)
+
+    const result = await requestOTP(formData)
+
+    if (result?.success) {
+      setOtpSent(true)
+    } else {
+      setOtpError(result?.error || "Failed to send OTP")
+    }
+    setOtpLoading(false)
+  }
+
+  const handleVerifyOTP = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setOtpLoading(true)
+    setOtpError(null)
+
+    const formData = new FormData(e.currentTarget)
+    formData.append("email", verifyEmail)
+
+    const result = await verifyEmailOTP(formData)
+
+    if (result?.success) {
+      setOtpSuccess(true)
+      setTimeout(() => {
+        setVerifyMode(false)
+        setOtpSent(false)
+        setOtpSuccess(false)
+        setVerifyEmail("")
+        setIsToggled(false)
+      }, 2000)
+    } else {
+      setOtpError(result?.error || "Failed to verify OTP")
+    }
+    setOtpLoading(false)
+  }
+
+  const handleResendOTP = async () => {
+    setOtpError(null)
+    const formData = new FormData()
+    formData.append("email", verifyEmail)
+
+    const result = await resendOTP(formData)
+
+    if (result?.success) {
+      setOtpError("New OTP sent!")
+    } else {
+      setOtpError(result?.error || "Failed to resend OTP")
+    }
+  }
+
+  const openVerifyMode = (email: string) => {
+    setVerifyEmail(email)
+    setVerifyMode(true)
+    setOtpSent(false)
+    setOtpError(null)
   }
 
   return (
@@ -285,6 +357,21 @@ function AuthPageContent() {
         }
 
         .switch-link a:hover {
+          text-decoration: underline;
+        }
+
+        .forgot-link {
+          text-align: center;
+          margin-top: 15px;
+        }
+
+        .forgot-link a {
+          color: #00d4ff;
+          cursor: pointer;
+          font-size: 14px;
+        }
+
+        .forgot-link a:hover {
           text-decoration: underline;
         }
 
@@ -530,6 +617,10 @@ function AuthPageContent() {
             </button>
           </form>
 
+          <p className="forgot-link">
+            <a onClick={() => openVerifyMode(loginForm.email || "")}>Forgot Password?</a>
+          </p>
+
           <p className="switch-link">
             Don't have an account? 
             <a onClick={() => setIsToggled(true)}>Sign Up</a>
@@ -607,6 +698,152 @@ function AuthPageContent() {
           <p>Start your learning adventure</p>
         </div>
       </div>
+
+      {verifyMode && (
+        <div className="verify-modal-overlay">
+          <div className="verify-modal">
+            <button className="close-btn" onClick={() => setVerifyMode(false)}>×</button>
+            
+            <h2>Email Verification</h2>
+            <p className="verify-desc">
+              {otpSent 
+                ? `Enter the 6-digit OTP sent to ${verifyEmail}`
+                : `Enter your email to receive verification code`
+              }
+            </p>
+
+            {otpError && <p className="error-msg">{otpError}</p>}
+            {otpSuccess && <p className="success-msg">Email verified successfully!</p>}
+
+            {!otpSent ? (
+              <form onSubmit={handleSendOTP}>
+                <div className="field-wrapper">
+                  <input
+                    type="email"
+                    value={verifyEmail}
+                    onChange={(e) => setVerifyEmail(e.target.value)}
+                    required
+                  />
+                  <label>Your Email</label>
+                </div>
+                <button type="submit" className="submit-button" disabled={otpLoading}>
+                  {otpLoading ? "Sending..." : "Send OTP"}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyOTP}>
+                <div className="field-wrapper">
+                  <input
+                    type="text"
+                    name="otp"
+                    maxLength={6}
+                    pattern="[0-9]*"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    required
+                    placeholder=""
+                  />
+                  <label>Enter 6-digit OTP</label>
+                </div>
+                <button type="submit" className="submit-button" disabled={otpLoading}>
+                  {otpLoading ? "Verifying..." : "Verify OTP"}
+                </button>
+                <button type="button" className="resend-btn" onClick={handleResendOTP}>
+                  Resend OTP
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        .verify-modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.8);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .verify-modal {
+          background: #1a1a2e;
+          border: 2px solid #00d4ff;
+          border-radius: 20px;
+          padding: 40px;
+          max-width: 400px;
+          width: 90%;
+          position: relative;
+          animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+          from { transform: translateY(20px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+
+        .verify-modal h2 {
+          color: #fff;
+          text-align: center;
+          margin-bottom: 10px;
+        }
+
+        .verify-desc {
+          color: rgba(255, 255, 255, 0.7);
+          text-align: center;
+          margin-bottom: 25px;
+          font-size: 14px;
+        }
+
+        .verify-modal .close-btn {
+          position: absolute;
+          top: 15px;
+          right: 20px;
+          background: none;
+          border: none;
+          color: #fff;
+          font-size: 28px;
+          cursor: pointer;
+          line-height: 1;
+        }
+
+        .verify-modal .close-btn:hover {
+          color: #00d4ff;
+        }
+
+        .verify-modal .submit-button {
+          width: 100%;
+        }
+
+        .verify-modal .resend-btn {
+          width: 100%;
+          background: none;
+          border: none;
+          color: #00d4ff;
+          margin-top: 15px;
+          cursor: pointer;
+          font-size: 14px;
+          text-decoration: underline;
+        }
+
+        @media (max-width: 480px) {
+          .verify-modal {
+            padding: 30px 20px;
+            margin: 10px;
+          }
+        }
+      `}</style>
 
       <div className="footer">
         <a href="#">MEGA Learning Platform</a> - Empowering Education Through Technology

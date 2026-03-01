@@ -1,8 +1,8 @@
 "use server"
 
 import { auth, db } from "@/lib/firebase"
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth"
-import { doc, setDoc } from "firebase/firestore"
+import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from "firebase/auth"
+import { doc, setDoc, getDoc } from "firebase/firestore"
 
 export async function signupWithGmail(formData: FormData) {
   const email = formData.get("email") as string
@@ -23,18 +23,27 @@ export async function signupWithGmail(formData: FormData) {
   }
 
   try {
-    // Create user with Firebase Auth
+    const profileRef = doc(db, "profiles", email)
+    const profileSnap = await getDoc(profileRef)
+    
+    if (profileSnap.exists()) {
+      const existingData = profileSnap.data()
+      if (!existingData.emailVerified) {
+        return { needsVerification: true, email, message: "Please verify your email to complete registration" }
+      }
+      return { error: "This email is already registered. Please log in." }
+    }
+
     const userCredential = await createUserWithEmailAndPassword(auth, email, password)
     const user = userCredential.user
 
-    // Update profile with username
     await updateProfile(user, { displayName: username })
 
-    // Create user profile in Firestore
     const profileData = {
       id: user.uid,
       username,
       email,
+      emailVerified: false,
       full_name: "",
       total_videos_watched: 0,
       total_quizzes_passed: 0,
@@ -57,5 +66,23 @@ export async function signupWithGmail(formData: FormData) {
       return { error: "Password is too weak." }
     }
     return { error: err.message || "An unexpected error occurred during signup." }
+  }
+}
+
+export async function forgotPassword(formData: FormData) {
+  const email = formData.get("email") as string
+
+  if (!email) {
+    return { error: "Email is required" }
+  }
+
+  try {
+    await sendPasswordResetEmail(auth, email)
+    return { success: true, message: "Password reset email sent" }
+  } catch (err: any) {
+    if (err.code === "auth/user-not-found") {
+      return { error: "No account found with this email" }
+    }
+    return { error: "Failed to send reset email" }
   }
 }
