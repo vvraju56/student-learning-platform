@@ -51,6 +51,9 @@ export interface UserOverallData {
   completedCourses: number
   totalVideos: number
   completedVideos: number
+  webCompleted: number      // Videos completed (for web: 10 = 100%)
+  webPercentage: number     // Web completion percentage
+  overallPercentage: number // Overall from 30 videos
   lastUpdated: number
 }
 
@@ -198,7 +201,7 @@ export class FirebaseProgressService {
     }
   }
 
-  // Update overall progress
+  // Update overall progress (web completion + overall percentage)
   async updateOverallProgress(): Promise<boolean> {
     if (!this.userId) return false
 
@@ -226,7 +229,13 @@ export class FirebaseProgressService {
         })
       }
 
+      const TOTAL_WEB_VIDEOS = 10
+      const TOTAL_ALL_VIDEOS = 30
+      
       const overallProgress = totalCourses > 0 ? Math.round(totalProgress / totalCourses) : 0
+      const webCompleted = completedVideos
+      const webPercentage = Math.min((webCompleted / TOTAL_WEB_VIDEOS) * 100, 100)
+      const overallPercentage = Math.min((completedVideos / TOTAL_ALL_VIDEOS) * 100, 100)
       
       const overallPath = `users/${this.userId}/overall`
       const overallRef = ref(window.realtimeDb, overallPath)
@@ -237,10 +246,14 @@ export class FirebaseProgressService {
         completedCourses,
         totalVideos,
         completedVideos,
-        lastUpdated: Date.now()
+        webCompleted,
+        webPercentage: Math.round(webPercentage),
+        overallPercentage: Math.round(overallPercentage),
+        lastUpdated: Date.now(),
+        syncInterval: '5 minutes'
       })
 
-      console.log('✅ Overall progress updated:', overallProgress + '%')
+      console.log(`📊 Overall progress: ${completedVideos}/30 | Web: ${webPercentage}% | Overall: ${overallPercentage}%`)
       return true
       
     } catch (error) {

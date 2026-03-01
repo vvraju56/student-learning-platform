@@ -85,11 +85,32 @@ export const saveCourseProgressToFirebase = async (userId: string, courseId: str
 
 export const saveOverallProgressToFirebase = async (userId: string, overallProgress: number, courseProgress: any) => {
   try {
-    await set(ref(realtimeDb, `users/${userId}/learning/overallProgress`), overallProgress)
-    await update(ref(realtimeDb, `users/${userId}/learning`), {
+    const TOTAL_WEB_VIDEOS = 10
+    const TOTAL_ALL_VIDEOS = 30
+    
+    let totalCompletedVideos = 0
+    if (courseProgress) {
+      Object.values(courseProgress).forEach((course: any) => {
+        totalCompletedVideos += course.completedVideos || 0
+      })
+    }
+    
+    const webCompleted = totalCompletedVideos
+    const webPercentage = Math.min((webCompleted / TOTAL_WEB_VIDEOS) * 100, 100)
+    const overallPercentage = Math.min((totalCompletedVideos / TOTAL_ALL_VIDEOS) * 100, 100)
+
+    await set(ref(realtimeDb, `users/${userId}/learning/overall`), {
+      overallProgress: overallProgress,
+      completedVideos: totalCompletedVideos,
+      webCompleted: webCompleted,
+      webPercentage: Math.round(webPercentage),
+      overallPercentage: Math.round(overallPercentage),
       courses: courseProgress,
-      lastUpdated: Date.now()
+      lastUpdated: Date.now(),
+      syncInterval: '5 minutes'
     })
+    
+    console.log(`📊 Progress synced: ${totalCompletedVideos}/30 | Web: ${webPercentage}% | Overall: ${overallPercentage}%`)
   } catch (error) {
     console.error('Error saving overall progress to Firebase:', error)
   }
@@ -282,6 +303,36 @@ export const saveFocusAnalyticsToFirestore = async (userId: string, data: {
   } catch (error) {
     console.error('❌ Failed to save focus analytics to Firestore:', error)
     return null
+  }
+}
+
+// RESET ALL PROGRESS - Call this to clear user progress
+export const resetAllProgress = async (userId: string) => {
+  if (!userId) {
+    console.error('No userId provided')
+    return false
+  }
+
+  try {
+    const userPath = `users/${userId}`
+    
+    // Reset all progress paths
+    await set(ref(realtimeDb, `${userPath}/learning`), {
+      resetAt: Date.now(),
+      message: 'Progress reset by user'
+    })
+    
+    await set(ref(realtimeDb, `${userPath}/courses`), null)
+    await set(ref(realtimeDb, `${userPath}/videos`), null)
+    await set(ref(realtimeDb, `${userPath}/overall`), null)
+    await set(ref(realtimeDb, `${userPath}/violations`), null)
+    await set(ref(realtimeDb, `${userPath}/learning/current`), null)
+
+    console.log('🗑️ All progress reset for user:', userId)
+    return true
+  } catch (error) {
+    console.error('❌ Failed to reset progress:', error)
+    return false
   }
 }
 

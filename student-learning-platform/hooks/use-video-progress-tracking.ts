@@ -64,7 +64,7 @@ export function useVideoProgressTracking(
   const lastSaveTime = useRef<number>(0)
   
   const userId = auth.currentUser?.uid
-  const autoSaveInterval = options.autoSaveInterval || 30 // Save every 30 seconds by default
+  const autoSaveInterval = options.autoSaveInterval || 300 // Save every 5 minutes (300 seconds) - FREE TIER SAFE
 
   // Firebase paths
   const getVideoPath = () => `users/${userId}/videos/${courseId}_${videoId}`
@@ -158,12 +158,55 @@ export function useVideoProgressTracking(
         options.onCourseCompleted?.(courseId)
       }
       
+      // Update overall progress after course update
+      await updateOverallProgress()
+      
       return true
     } catch (error) {
       console.error('Error saving course progress:', error)
       return false
     }
   }, [userId, courseId, options])
+
+  // Update overall progress (web completion + overall percentage)
+  const updateOverallProgress = useCallback(async () => {
+    if (!userId) return
+
+    try {
+      const coursesRef = ref(window.realtimeDb, `users/${userId}/courses`)
+      const snapshot = await get(coursesRef)
+      
+      let totalCompletedVideos = 0
+      
+      if (snapshot.exists()) {
+        const courses = snapshot.val()
+        Object.values(courses).forEach((course: any) => {
+          totalCompletedVideos += course.completedVideos || 0
+        })
+      }
+
+      const TOTAL_WEB_VIDEOS = 10
+      const TOTAL_ALL_VIDEOS = 30
+      
+      const webCompleted = totalCompletedVideos
+      const webPercentage = Math.min((webCompleted / TOTAL_WEB_VIDEOS) * 100, 100)
+      const overallPercentage = Math.min((totalCompletedVideos / TOTAL_ALL_VIDEOS) * 100, 100)
+
+      const overallRef = ref(window.realtimeDb, `users/${userId}/learning/overall`)
+      await set(overallRef, {
+        completedVideos: totalCompletedVideos,
+        webCompleted: webCompleted,
+        webPercentage: Math.round(webPercentage),
+        overallPercentage: Math.round(overallPercentage),
+        lastUpdated: Date.now(),
+        syncInterval: '5 minutes'
+      })
+
+      console.log(`📊 Overall: ${totalCompletedVideos}/30 | Web: ${webPercentage}% | Overall: ${overallPercentage}%`)
+    } catch (error) {
+      console.error('Error updating overall progress:', error)
+    }
+  }, [userId])
 
   // Update valid watch time (called every second while video plays)
   const updateWatchTime = useCallback(() => {
@@ -251,7 +294,7 @@ export function useVideoProgressTracking(
       checkVideoCompletion()
     }, 1000)
 
-    // Auto-save every 30 seconds
+    // Auto-save every 5 minutes (FREE TIER SAFE)
     autoSaveIntervalRef.current = setInterval(() => {
       saveVideoProgress()
     }, autoSaveInterval * 1000)
