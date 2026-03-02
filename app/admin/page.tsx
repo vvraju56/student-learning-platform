@@ -267,13 +267,25 @@ export default function AdminPage() {
     
     setActionLoading(userId)
     try {
+      // 1. Delete Firestore main records
       await deleteDoc(doc(db, "users", userId))
       await deleteDoc(doc(db, "profiles", userId))
+      
+      // 2. Delete Firestore related collections
+      const collectionsToDelete = ["video_progress", "quiz_attempts", "focus_analytics"]
+      for (const colName of collectionsToDelete) {
+        const q = query(collection(db, colName), where("user_id", "==", userId))
+        const snapshot = await getDocs(q)
+        const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref))
+        await Promise.all(deletePromises)
+      }
+
+      // 3. Delete from Realtime Database
       try {
         await remove(ref(realtimeDb, `users/${userId}`))
       } catch (e) {}
 
-      setMessage({ type: "success", text: "User permanently deleted from database" })
+      setMessage({ type: "success", text: "User and all associated data permanently deleted" })
       await loadDeletedUsers()
       setSelectedUser(null)
     } catch (err: any) {

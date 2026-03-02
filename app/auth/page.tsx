@@ -36,15 +36,19 @@ function AuthPageContent() {
       const userCredential = await signInWithEmailAndPassword(auth, email, password)
       const user = userCredential.user
 
-      // Check if account is deleted
+      // Check if account is deleted or exists
       const userDoc = await getDoc(doc(db, "users", user.uid))
       const profileDoc = await getDoc(doc(db, "profiles", user.uid))
       
+      const exists = userDoc.exists() || profileDoc.exists()
       const isDeleted = userDoc.data()?.deleted === true || profileDoc.data()?.deleted === true
       
-      if (isDeleted) {
+      if (email !== "admin@123.in" && (!exists || isDeleted)) {
         await signOut(auth)
-        setLoginError("This account has been disabled. Please contact support.")
+        const errorMsg = isDeleted 
+          ? "This account has been disabled. Please contact support."
+          : "Account not found. It may have been permanently deleted."
+        setLoginError(errorMsg)
         setLoading(false)
         return
       }
