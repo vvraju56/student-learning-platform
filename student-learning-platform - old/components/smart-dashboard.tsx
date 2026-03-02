@@ -12,7 +12,6 @@ import {
 } from "lucide-react"
 import { MonitoringProvider, useMonitoring } from "../contexts/monitoring-context"
 import { FirebaseProgressManager } from "../lib/firebase-progress"
-import { videoSyncService } from "../services/video-sync-service"
 import { courses } from "../lib/courses-data"
 
 interface SmartDashboardProps {
@@ -71,29 +70,13 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
         isFirstLoad.current = false
       }
       try {
-        // Try loading from new videoSyncService (Firebase)
-        let coursesProgressData: any = {}
+        // First try to load from Firebase
+        const userProgress = await Promise.race([
+          firebaseManager.getUserProgress(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+        ]).catch(() => null)
         
-        try {
-          const allCoursesProgress = await videoSyncService.getAllCoursesProgress(user?.uid || "")
-          
-          // Convert to the format needed
-          allCoursesProgress.forEach((courseData: any) => {
-            coursesProgressData[courseData.courseId] = courseData
-          })
-        } catch (e) {
-          console.log("Could not load from videoSyncService, using fallback")
-        }
-        
-        // Fallback to old Firebase manager if needed
-        if (Object.keys(coursesProgressData).length === 0) {
-          const userProgress = await Promise.race([
-            firebaseManager.getUserProgress(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
-          ]).catch(() => null)
-          
-          coursesProgressData = (userProgress as any)?.courses || {}
-        }
+        const fetchedCoursesData = (userProgress as any)?.courses || {};
         
         const newCourseProgress: {[key: string]: {progress: number, completedVideos: number, totalVideos: number}} = {}
         let totalProgressSum = 0
@@ -106,7 +89,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
           const totalVideosInCourse = courseModules.videos.length;
 
           // Check Firebase first, then fall back to localStorage
-          let progressData = coursesProgressData[courseId] || {};
+          let progressData = fetchedCoursesData[courseId] || {};
           let completedVideos = progressData.completedVideos || 0;
           
           // If Firebase has no progress, check localStorage
@@ -539,7 +522,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
               </Card.Body>
             </Card>
 
-            {/* Face Monitoring Panel */}
+            {/* AI Monitoring Panel */}
             <Card className="border-0 shadow-lg" style={{ 
               backgroundColor: '#0a0a0a', 
               borderRadius: '12px',
@@ -547,7 +530,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
             }}>
               <Card.Header className="border-0 bg-transparent py-3">
                 <div className="d-flex justify-content-between align-items-center">
-                  <h5 className="mb-0 fw-bold" style={brightWhiteStyle}>Face Monitoring</h5>
+                  <h5 className="mb-0 fw-bold" style={brightWhiteStyle}>AI Monitoring</h5>
                   <Badge 
                     bg={isMonitoring ? 'success' : 'secondary'}
                   >
@@ -816,7 +799,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
                 <div className="p-3 rounded" style={{ backgroundColor: '#1a1a1a' }}>
                   <h6 className="fw-bold mb-3" style={brightWhiteStyle}>
                     <Eye className="w-5 h-5 me-2" />
-                    Face Monitoring
+                    AI Monitoring
                   </h6>
                   <ul className="mb-0" style={{ paddingLeft: '1rem', ...brightWhiteTextStyle }}>
                     <li className="mb-2 small">Face detection ensures active participation</li>

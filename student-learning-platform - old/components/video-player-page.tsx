@@ -22,12 +22,21 @@ const BootstrapBadge = dynamic(() => import('react-bootstrap/Badge'), {
   loading: () => <span className="badge">Loading...</span>
 })
 
+// Dynamic import for validation hook
+const useVideoValidation = (() => {
+  let hook: any = null;
+  return () => {
+    if (!hook) {
+      hook = require("../hooks/use-focus-aware-controls").useVideoValidation;
+    }
+    return hook();
+  };
+})();
+
 import { 
   Play, Pause, SkipForward, SkipBack, Volume2, Maximize2, 
   ArrowLeft, AlertTriangle, Eye, EyeOff, Activity, Clock
 } from "lucide-react"
-import { videoSyncService } from "@/services/video-sync-service"
-import { useVideoValidation } from "@/hooks/use-video-validation"
 
 interface VideoPlayerPageProps {
   user: any
@@ -52,24 +61,6 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
   const [ProgressBar, setProgressBar] = useState<any>(null)
   const [Badge, setBadge] = useState<any>(null)
   
-  // Video sync state
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced'>('idle')
-  const [lastSyncTime, setLastSyncTime] = useState<number>(0)
-  const videoKeyRef = useRef<string>(`${courseId}_${videoId}`)
-  const watchTimeRef = useRef<number>(0)
-  
-  // Get validation state
-  const { state: validationState = {
-    watchTime: 0,
-    totalDuration: 0,
-    violations: { tabSwitches: 0, faceMissingEvents: 0, autoPauses: 0, skipCount: 0, skippedTime: 0 },
-    isValid: false,
-    isCompleted: false,
-    completionPercentage: 0,
-    isVideoPlaying: false
-  }, startVideoValidation = () => {}, addViolation = () => {} } = useVideoValidation(user?.uid || "")
-  
-  
   useEffect(() => {
     // Dynamically import Bootstrap components
     Promise.all([
@@ -85,63 +76,17 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
     })
   }, [])
   
-  // Setup video progress sync every 5 minutes
-  useEffect(() => {
-    if (!user?.uid) return
-    
-    const videoKey = videoKeyRef.current
-    
-    // Start sync with 5-minute interval
-    videoSyncService.startSync(
-      videoKey,
-      user.uid,
-      courseId,
-      videoId,
-      async (data) => {
-        setSyncStatus('syncing')
-        try {
-          // Simulate sync delay
-          await new Promise(resolve => setTimeout(resolve, 500))
-          setLastSyncTime(Date.now())
-          setSyncStatus('synced')
-          console.log('✅ Video progress synced to Firebase')
-          
-          // Reset status after 3 seconds
-          setTimeout(() => setSyncStatus('idle'), 3000)
-        } catch (error) {
-          console.error('Error syncing video progress:', error)
-          setSyncStatus('idle')
-        }
-      }
-    )
-    
-    // Cleanup on unmount
-    return () => {
-      videoSyncService.stopSync(videoKey)
-      videoSyncService.cleanup()
-    }
-  }, [user?.uid, courseId, videoId])
-  
-  // Update pending sync data on video progress change
-  useEffect(() => {
-    const videoKey = videoKeyRef.current
-    
-    videoSyncService.updatePendingData(videoKey, {
-      courseId,
-      videoId,
-      userId: user?.uid || '',
-      currentTime,
-      duration,
-      isPlaying,
-      watchTime: watchTimeRef.current,
-      violations: validationState.violations
-    })
-  }, [currentTime, duration, isPlaying, courseId, videoId, validationState.violations, user?.uid])
-  
-  // Track watch time
-  useEffect(() => {
-    watchTimeRef.current += currentTime
-  }, [currentTime])
+  const { 
+    validationState = {
+      watchTime: 0,
+      violations: { tabSwitches: 0, faceMissingEvents: 0, autoPauses: 0, skipCount: 0 },
+      isValid: false
+    }, 
+    validateVideoCompletion = () => ({ isValid: false }), 
+    updateWatchTime = () => {}, 
+    setVideoDuration = () => {},
+    addViolation = () => {} 
+  } = validationHook || {}
 
   // Mock video data
   useEffect(() => {
@@ -153,9 +98,8 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
       url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4'
     }
     setVideo(mockVideo)
-    // Start validation with video duration
-    startVideoValidation(mockVideo.duration)
-  }, [courseId, videoId, startVideoValidation])
+    setVideoDuration(mockVideo.duration)
+  }, [courseId, videoId])
 
   // Video event handlers
   const handlePlay = () => {
@@ -176,7 +120,7 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
     if (videoRef.current) {
       const time = videoRef.current.currentTime
       setCurrentTime(time)
-      // Watch time is tracked via watchTimeRef automatically
+      updateWatchTime(time)
     }
   }
 
@@ -218,7 +162,9 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
 
   const handleBackToVideos = () => {
     // Save progress before leaving
-    // Validation is automatically tracked by the validation hook
+    if (validateVideoCompletion().isValid) {
+      // Save to Firebase
+    }
     router.push(`/course/${courseId}/videos`)
   }
 
@@ -272,7 +218,6 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
                   <p className="mb-0 text-muted" style={{ fontSize: '0.875rem' }}>
                     {video.description}
                   </p>
-
                 </div>
               </div>
             </div>
@@ -337,7 +282,7 @@ export function VideoPlayerPage({ user, courseId, videoId }: VideoPlayerPageProp
                         cursor: 'pointer'
                       }}
                       variant="primary"
-                      onClick={(e: React.MouseEvent<HTMLDivElement>) => {
+                      onClick={(e) => {
                         const rect = e.currentTarget.getBoundingClientRect()
                         const clickX = e.clientX - rect.left
                         const percentage = clickX / rect.width
