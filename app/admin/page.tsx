@@ -150,15 +150,33 @@ export default function AdminPage() {
   const handleViewDetails = async (userId: string) => {
     setActionLoading(userId)
     try {
-      // Fetch details directly on client
-      const userDoc = await getDoc(doc(db, "users", userId))
-      if (!userDoc.exists()) {
-        setMessage({ type: "error", text: "User not found" })
+      // Fetch details directly on client, checking both collections
+      let userDoc = await getDoc(doc(db, "users", userId))
+      let userData: any = null
+      
+      if (userDoc.exists()) {
+        userData = userDoc.data()
+      } else {
+        // Fallback to profiles
+        const profileDoc = await getDoc(doc(db, "profiles", userId))
+        if (profileDoc.exists()) {
+          const pData = profileDoc.data()
+          userData = {
+            uid: userId,
+            email: pData.email,
+            username: pData.username,
+            role: pData.role || "student",
+            createdAt: pData.created_at
+          }
+        }
+      }
+
+      if (!userData) {
+        setMessage({ type: "error", text: "User not found in any collection" })
         setActionLoading(null)
         return
       }
       
-      const userData = userDoc.data() as any
       let progressData = {}, overallData = {}
       
       try {
@@ -186,7 +204,7 @@ export default function AdminPage() {
         focusAnalytics
       })
     } catch (err: any) {
-      setMessage({ type: "error", text: err.message })
+      setMessage({ type: "error", text: "Error fetching details: " + err.message })
     }
     setActionLoading(null)
   }
@@ -195,14 +213,27 @@ export default function AdminPage() {
     if (!confirm("Are you sure you want to delete this user? They can be restored within 7 days.")) return
     
     setActionLoading(userId)
-    const result = await softDeleteUser(userId)
-    
-    if (result.success) {
-      setMessage({ type: "success", text: result.message || "Success" })
+    try {
+      const userRef = doc(db, "users", userId)
+      const deletedAt = Date.now()
+      const restoreBefore = deletedAt + (7 * 24 * 60 * 60 * 1000)
+
+      await updateDoc(userRef, {
+        deleted: true,
+        deletedAt: deletedAt,
+        restoreBefore: restoreBefore
+      })
+
+      // Also mark in profiles if exists
+      try {
+        await updateDoc(doc(db, "profiles", userId), { deleted: true })
+      } catch (e) {}
+
+      setMessage({ type: "success", text: "User soft-deleted successfully" })
       await loadUsers()
       await loadDeletedUsers()
-    } else {
-      setMessage({ type: "error", text: result.error || "An error occurred" })
+    } catch (err: any) {
+      setMessage({ type: "error", text: "Delete error: " + err.message })
     }
     setActionLoading(null)
   }
@@ -211,14 +242,22 @@ export default function AdminPage() {
     if (!confirm("Restore this user? Their data will be restored.")) return
     
     setActionLoading(userId)
-    const result = await restoreUser(userId)
-    
-    if (result.success) {
-      setMessage({ type: "success", text: result.message || "Success" })
+    try {
+      await updateDoc(doc(db, "users", userId), {
+        deleted: false,
+        deletedAt: null,
+        restoreBefore: null
+      })
+      
+      try {
+        await updateDoc(doc(db, "profiles", userId), { deleted: false })
+      } catch (e) {}
+
+      setMessage({ type: "success", text: "User restored successfully" })
       await loadUsers()
       await loadDeletedUsers()
-    } else {
-      setMessage({ type: "error", text: result.error || "An error occurred" })
+    } catch (err: any) {
+      setMessage({ type: "error", text: "Restore error: " + err.message })
     }
     setActionLoading(null)
   }
@@ -227,28 +266,39 @@ export default function AdminPage() {
     if (!confirm("⚠️ PERMANENT DELETE! This cannot be undone. Are you sure?")) return
     
     setActionLoading(userId)
-    const result = await permanentDeleteUser(userId)
-    
-    if (result.success) {
-      setMessage({ type: "success", text: result.message || "User deleted" })
+    try {
+      await deleteDoc(doc(db, "users", userId))
+      await deleteDoc(doc(db, "profiles", userId))
+      try {
+        await remove(ref(realtimeDb, `users/${userId}`))
+      } catch (e) {}
+
+      setMessage({ type: "success", text: "User permanently deleted from database" })
       await loadDeletedUsers()
       setSelectedUser(null)
-    } else {
-      setMessage({ type: "error", text: result.error || "Failed to delete user" })
+    } catch (err: any) {
+      setMessage({ type: "error", text: "Permanent delete error: " + err.message })
     }
     setActionLoading(null)
   }
 
   const handleResetPassword = async (userId: string) => {
-    if (!confirm("Reset password to default 'student'?")) return
+    if (!confirm("Send password reset email to this user?")) return
     
     setActionLoading(userId)
-    const result = await resetUserPassword(userId)
-    
-    if (result.success) {
-      setMessage({ type: "success", text: result.message || "Password reset" })
-    } else {
-      setMessage({ type: "error", text: result.error || "Failed to reset password" })
+    try {
+      // Get email first
+      const userDoc = await getDoc(doc(db, "users", userId))
+      const email = userDoc.exists() ? userDoc.data()?.email : (await getDoc(doc(db, "profiles", userId))).data()?.email
+      
+      if (!email) throw new Error("User email not found")
+
+      const { sendPasswordResetEmail } = await import("firebase/auth")
+      await sendPasswordResetEmail(auth, email)
+      
+      setMessage({ type: "success", text: "Password reset email sent to " + email })
+    } catch (err: any) {
+      setMessage({ type: "error", text: "Reset error: " + err.message })
     }
     setActionLoading(null)
   }
