@@ -28,8 +28,11 @@ function AuthPageContent() {
     setLoading(true)
     setLoginError(null)
 
+    const email = loginForm.email.trim()
+    const password = loginForm.password.trim()
+
     try {
-      await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password)
+      await signInWithEmailAndPassword(auth, email, password)
       // Clear old shared progress data to prevent data leakage
       ProgressStorage.clearOldSharedProgress()
       router.push("/dashboard")
