@@ -58,15 +58,39 @@ export async function checkAdminStatus(email: string) {
 
 export async function getAllUsers() {
   try {
+    // Try to get from 'users' collection first
     const usersRef = collection(db, "users")
     const querySnapshot = await getDocs(usersRef)
     
+    let userDocs = querySnapshot.docs.map(doc => doc.data())
+    
+    // If 'users' collection is empty or has very few users, check 'profiles' as well
+    // This handles users created before the dual-write update
+    const profilesRef = collection(db, "profiles")
+    const profilesSnapshot = await getDocs(profilesRef)
+    
+    const profileDocs = profilesSnapshot.docs.map(doc => {
+      const data = doc.data()
+      return {
+        uid: data.id || doc.id,
+        email: data.email,
+        username: data.username,
+        role: data.role || "student",
+        createdAt: data.created_at || new Date().toISOString(),
+        deleted: false
+      }
+    })
+
+    // Merge them, prioritizing 'users' collection data
+    const mergedUsersMap = new Map()
+    
+    profileDocs.forEach(u => mergedUsersMap.set(u.uid, u))
+    userDocs.forEach(u => mergedUsersMap.set(u.uid, u))
+    
     const users: any[] = []
     
-    for (const docSnap of querySnapshot.docs) {
-      const userData = docSnap.data()
-      
-      // Skip admin user
+    for (const userData of mergedUsersMap.values()) {
+      // Skip admin user from the list to avoid self-management
       if (userData.email === ADMIN_EMAIL) continue
       
       // Get progress from Realtime Database
