@@ -7,17 +7,10 @@ import { ref, set, get, remove } from "firebase/database"
 import nodemailer from "nodemailer"
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: process.env.SMTP_SECURE === "true",
+  service: "gmail",
   auth: {
-    user: process.env.SMTP_USER || 'codetech9227@gmail.com',
-    pass: process.env.SMTP_PASS || 'ysxfygnfiorxtbew'
-  },
-  connectionTimeout: 60000,
-  timeout: 60000,
-  tls: {
-    rejectUnauthorized: false
+    user: 'codetech9227@gmail.com',
+    pass: 'ysxfygnfiorxtbew'
   }
 })
 
