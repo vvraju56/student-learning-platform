@@ -67,9 +67,15 @@ export default function AdminPage() {
   }, [router])
 
   const loadUsers = async () => {
-    const result = await getAllUsers()
-    if (result.success && result.users) {
-      setUsers(result.users)
+    try {
+      const result = await getAllUsers()
+      if (result.success && result.users) {
+        setUsers(result.users)
+      } else {
+        setMessage({ type: "error", text: result.error || "Failed to load users" })
+      }
+    } catch (err: any) {
+      setMessage({ type: "error", text: "Exception loading users: " + err.message })
     }
   }
 
