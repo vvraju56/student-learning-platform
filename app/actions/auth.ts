@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
   secure: process.env.SMTP_SECURE === "true",
   auth: {
     user: process.env.SMTP_USER || 'codetech9227@gmail.com',
-    pass: process.env.SMTP_PASS || 'ysxf ygnf iorx tbew'
+    pass: process.env.SMTP_PASS || 'ysxfygnfiorxtbew'
   },
   connectionTimeout: 60000,
   timeout: 60000,
