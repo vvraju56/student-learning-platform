@@ -6,7 +6,7 @@ import { onAuthStateChanged } from "firebase/auth"
 import { auth } from "../../lib/firebase"
 import { getAllUsers, getUserDetails, softDeleteUser, restoreUser, permanentDeleteUser, resetUserPassword, getDeletedUsers } from "../../app/actions/admin"
 
-const ADMIN_EMAIL = "admin123.in"
+const ADMIN_EMAIL = "admin@123.in"
 
 interface User {
   uid: string

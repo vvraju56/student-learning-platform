@@ -5,7 +5,7 @@ import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail }
 import { doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, query, where } from "firebase/firestore"
 import { ref, set, get, remove } from "firebase/database"
 
-const ADMIN_EMAIL = "admin123.in"
+const ADMIN_EMAIL = "admin@123.in"
 const ADMIN_USERNAME = "Mega"
 const DEFAULT_PASSWORD = "student"
 
