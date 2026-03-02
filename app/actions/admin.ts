@@ -57,17 +57,23 @@ export async function checkAdminStatus(email: string) {
 }
 
 export async function getAllUsers() {
+  console.log("getAllUsers starting...");
   try {
     // Try to get from 'users' collection first
     const usersRef = collection(db, "users")
     const querySnapshot = await getDocs(usersRef)
+    console.log(`Found ${querySnapshot.size} docs in 'users' collection`);
     
-    let userDocs = querySnapshot.docs.map(doc => doc.data())
+    let userDocs = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return { ...data, uid: data.uid || doc.id };
+    })
     
     // If 'users' collection is empty or has very few users, check 'profiles' as well
     // This handles users created before the dual-write update
     const profilesRef = collection(db, "profiles")
     const profilesSnapshot = await getDocs(profilesRef)
+    console.log(`Found ${profilesSnapshot.size} docs in 'profiles' collection`);
     
     const profileDocs = profilesSnapshot.docs.map(doc => {
       const data = doc.data()
@@ -77,7 +83,7 @@ export async function getAllUsers() {
         username: data.username,
         role: data.role || "student",
         createdAt: data.created_at || new Date().toISOString(),
-        deleted: false
+        deleted: data.deleted || false
       }
     })
 
@@ -85,13 +91,23 @@ export async function getAllUsers() {
     const mergedUsersMap = new Map()
     
     profileDocs.forEach(u => mergedUsersMap.set(u.uid, u))
-    userDocs.forEach(u => mergedUsersMap.set(u.uid, u))
+    userDocs.forEach(u => mergedUsersMap.set(u.uid, { ...mergedUsersMap.get(u.uid), ...u }))
+    
+    console.log(`Total merged users: ${mergedUsersMap.size}`);
     
     const users: any[] = []
     
     for (const userData of mergedUsersMap.values()) {
       // Skip admin user from the list to avoid self-management
-      if (userData.email === ADMIN_EMAIL) continue
+      if (userData.email === ADMIN_EMAIL) {
+        console.log("Skipping admin user:", userData.email);
+        continue
+      }
+
+      if (userData.deleted === true) {
+        console.log("Skipping deleted user:", userData.email);
+        continue;
+      }
       
       // Get progress from Realtime Database
       let progressData: any = {}
@@ -118,6 +134,7 @@ export async function getAllUsers() {
       })
     }
     
+    console.log(`Returning ${users.length} active users`);
     return { success: true, users }
   } catch (err: any) {
     console.error("Error fetching users:", err)
@@ -325,11 +342,26 @@ export async function getDeletedUsers() {
     const usersRef = collection(db, "users")
     const querySnapshot = await getDocs(usersRef)
     
+    const profilesRef = collection(db, "profiles")
+    const profilesSnapshot = await getDocs(profilesRef)
+    
+    const mergedUsersMap = new Map()
+    
+    profilesSnapshot.docs.forEach(doc => {
+      const data = doc.data()
+      const uid = data.id || doc.id
+      mergedUsersMap.set(uid, { uid, ...data })
+    })
+    
+    querySnapshot.docs.forEach(doc => {
+      const data = doc.data()
+      const uid = data.uid || doc.id
+      mergedUsersMap.set(uid, { ...mergedUsersMap.get(uid), ...data })
+    })
+    
     const deletedUsers: any[] = []
     
-    for (const docSnap of querySnapshot.docs) {
-      const userData = docSnap.data()
-      
+    for (const userData of mergedUsersMap.values()) {
       if (userData.deleted === true) {
         deletedUsers.push({
           uid: userData.uid,
