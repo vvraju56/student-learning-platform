@@ -3,8 +3,9 @@
 import React, { useState, useTransition, Suspense } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { auth } from "@/lib/firebase"
-import { signInWithEmailAndPassword } from "firebase/auth"
+import { signInWithEmailAndPassword, signOut } from "firebase/auth"
+import { doc, getDoc } from "firebase/firestore"
+import { auth, db } from "@/lib/firebase"
 import { signup } from "@/app/actions/auth"
 import { ProgressStorage } from "@/lib/progress-storage"
 
@@ -32,7 +33,22 @@ function AuthPageContent() {
     const password = loginForm.password.trim()
 
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      const userCredential = await signInWithEmailAndPassword(auth, email, password)
+      const user = userCredential.user
+
+      // Check if account is deleted
+      const userDoc = await getDoc(doc(db, "users", user.uid))
+      const profileDoc = await getDoc(doc(db, "profiles", user.uid))
+      
+      const isDeleted = userDoc.data()?.deleted === true || profileDoc.data()?.deleted === true
+      
+      if (isDeleted) {
+        await signOut(auth)
+        setLoginError("This account has been disabled. Please contact support.")
+        setLoading(false)
+        return
+      }
+
       // Clear old shared progress data to prevent data leakage
       ProgressStorage.clearOldSharedProgress()
       
