@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
-import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc, query, where } from "firebase/firestore"
+import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where } from "firebase/firestore"
 import { ref, get, remove } from "firebase/database"
 import { auth, db, realtimeDb } from "../../lib/firebase"
 import { softDeleteUser, restoreUser, permanentDeleteUser, resetUserPassword, getDeletedUsers } from "../../app/actions/admin"
