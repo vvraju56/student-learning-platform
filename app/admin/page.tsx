@@ -286,6 +286,7 @@ export default function AdminPage() {
       } catch (e) {}
 
       setMessage({ type: "success", text: "User and all associated data permanently deleted" })
+      await loadUsers()
       await loadDeletedUsers()
       setSelectedUser(null)
     } catch (err: any) {

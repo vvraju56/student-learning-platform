@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { onAuthStateChanged } from "firebase/auth"
-import { auth } from "../../lib/firebase"
+import { onAuthStateChanged, signOut } from "firebase/auth"
+import { doc, getDoc } from "firebase/firestore"
+import { auth, db } from "../../lib/firebase"
 import { SmartDashboard } from "../../components/smart-dashboard"
 import { MonitoringProvider } from "../../contexts/monitoring-context"
 
@@ -14,9 +15,9 @@ export default function DashboardPage() {
   const router = useRouter()
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
-        router.push("/login")
+        router.push("/auth?mode=signin")
         return
       }
 
@@ -26,12 +27,30 @@ export default function DashboardPage() {
         return
       }
 
-      setUser(currentUser)
-      setProfile({
-        displayName: currentUser.displayName,
-        email: currentUser.email,
-        photoURL: currentUser.photoURL
-      })
+      // SECURITY CHECK: Ensure user profile still exists and is not deleted
+      try {
+        const userDoc = await getDoc(doc(db, "users", currentUser.uid))
+        const profileDoc = await getDoc(doc(db, "profiles", currentUser.uid))
+        
+        const exists = userDoc.exists() || profileDoc.exists()
+        const isDeleted = userDoc.data()?.deleted === true || profileDoc.data()?.deleted === true
+
+        if (!exists || isDeleted) {
+          await signOut(auth)
+          router.push("/auth?mode=signin")
+          return
+        }
+
+        setUser(currentUser)
+        setProfile(profileDoc.exists() ? profileDoc.data() : {
+          displayName: currentUser.displayName,
+          email: currentUser.email,
+          photoURL: currentUser.photoURL
+        })
+      } catch (err) {
+        console.error("Dashboard auth check error:", err)
+      }
+      
       setLoading(false)
     })
 
