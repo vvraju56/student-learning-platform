@@ -214,19 +214,19 @@ export default function AdminPage() {
     
     setActionLoading(userId)
     try {
-      const userRef = doc(db, "users", userId)
       const deletedAt = Date.now()
       const restoreBefore = deletedAt + (7 * 24 * 60 * 60 * 1000)
 
-      await updateDoc(userRef, {
+      // Use setDoc with merge to create the doc in 'users' if it only exists in 'profiles'
+      await setDoc(doc(db, "users", userId), {
         deleted: true,
         deletedAt: deletedAt,
         restoreBefore: restoreBefore
-      })
+      }, { merge: true })
 
       // Also mark in profiles if exists
       try {
-        await updateDoc(doc(db, "profiles", userId), { deleted: true })
+        await setDoc(doc(db, "profiles", userId), { deleted: true }, { merge: true })
       } catch (e) {}
 
       setMessage({ type: "success", text: "User soft-deleted successfully" })
@@ -243,14 +243,14 @@ export default function AdminPage() {
     
     setActionLoading(userId)
     try {
-      await updateDoc(doc(db, "users", userId), {
+      await setDoc(doc(db, "users", userId), {
         deleted: false,
         deletedAt: null,
         restoreBefore: null
-      })
+      }, { merge: true })
       
       try {
-        await updateDoc(doc(db, "profiles", userId), { deleted: false })
+        await setDoc(doc(db, "profiles", userId), { deleted: false }, { merge: true })
       } catch (e) {}
 
       setMessage({ type: "success", text: "User restored successfully" })
