@@ -24,6 +24,7 @@ export async function signup(formData: FormData) {
       username,
       email,
       full_name: "",
+      role: email === "admin@123.in" ? "admin" : "student",
       total_videos_watched: 0,
       total_quizzes_passed: 0,
       average_focus_score: 0,
@@ -33,7 +34,20 @@ export async function signup(formData: FormData) {
       created_at: new Date().toISOString()
     }
 
-    await setDoc(doc(db, "profiles", user.uid), profileData)
+    // Write to both 'profiles' (for Profile page) and 'users' (for Admin dashboard)
+    await Promise.all([
+      setDoc(doc(db, "profiles", user.uid), profileData),
+      setDoc(doc(db, "users", user.uid), {
+        uid: user.uid,
+        email,
+        username,
+        role: profileData.role,
+        createdAt: profileData.created_at,
+        deleted: false,
+        deletedAt: null,
+        restoreBefore: null
+      })
+    ])
 
     return { success: true }
   } catch (err: any) {

@@ -2,6 +2,7 @@
 
 import { auth, db, realtimeDb } from "@/lib/firebase"
 import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from "firebase/auth"
+import { signInWithEmailAndPassword } from "firebase/auth"
 import { doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, query, where } from "firebase/firestore"
 import { ref, set, get, remove } from "firebase/database"
 
@@ -269,25 +270,25 @@ export async function resetUserPassword(userId: string) {
     
     const userData = userDoc.data()
     
-    // Check if it's admin
     if (userData.email === ADMIN_EMAIL) {
       return { success: false, error: "Cannot reset admin password" }
     }
     
-    // Store the reset password request (we'll handle password reset via email)
     await updateDoc(userRef, {
       passwordResetRequired: true,
       defaultPasswordSet: DEFAULT_PASSWORD,
       passwordResetAt: Date.now()
     })
     
-    // In production, you would use Firebase Admin SDK to actually reset the password
-    // For now, we'll send a password reset email
-    // Note: This requires the user to have a Firebase Auth account
+    try {
+      await sendPasswordResetEmail(auth, userData.email)
+    } catch (emailErr) {
+      console.log("Password reset email error:", emailErr)
+    }
     
     return { 
       success: true, 
-      message: `Password will be reset to default: ${DEFAULT_PASSWORD}. User should change password on next login.`
+      message: `Password reset email sent to ${userData.email}. Default password: ${DEFAULT_PASSWORD}`
     }
   } catch (err: any) {
     console.error("Error resetting password:", err)
