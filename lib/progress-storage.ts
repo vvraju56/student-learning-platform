@@ -20,8 +20,16 @@ export class ProgressStorage {
     return `video_progress_${courseId}_${userId}_${videoId}`
   }
 
+  private static getCourseProgressKey(userId: string, courseId: string): string {
+    return `course_progress_${courseId}_${userId}`
+  }
+
+  private static getSessionTimeKey(userId: string, courseId: string, videoId: string): string {
+    return `sessionTime_${courseId}_${userId}_${videoId}`
+  }
+
   static saveVideoProgress(userId: string, courseId: string, videoId: string, data: Partial<VideoProgressData>) {
-    if (typeof window === 'undefined') return
+    if (typeof window === 'undefined' || !userId) return
 
     const key = this.getVideoProgressKey(userId, courseId, videoId)
     const existingData = this.getVideoProgress(userId, courseId, videoId)
@@ -40,7 +48,7 @@ export class ProgressStorage {
   }
 
   static getVideoProgress(userId: string, courseId: string, videoId: string): VideoProgressData | null {
-    if (typeof window === 'undefined') return null
+    if (typeof window === 'undefined' || !userId) return null
 
     const key = this.getVideoProgressKey(userId, courseId, videoId)
     const data = localStorage.getItem(key)
@@ -55,8 +63,45 @@ export class ProgressStorage {
     }
   }
 
+  static saveCourseProgress(userId: string, courseId: string, data: any) {
+    if (typeof window === 'undefined' || !userId) return
+    const key = this.getCourseProgressKey(userId, courseId)
+    localStorage.setItem(key, JSON.stringify(data))
+  }
+
+  static getRawCourseProgress(userId: string, courseId: string): any | null {
+    if (typeof window === 'undefined' || !userId) return null
+    const key = this.getCourseProgressKey(userId, courseId)
+    const data = localStorage.getItem(key)
+    if (!data) return null
+    try {
+      return JSON.parse(data)
+    } catch (error) {
+      return null
+    }
+  }
+
+  static saveSessionTime(userId: string, courseId: string, videoId: string, time: number) {
+    if (typeof window === 'undefined' || !userId) return
+    const key = this.getSessionTimeKey(userId, courseId, videoId)
+    localStorage.setItem(key, time.toString())
+  }
+
+  static getSessionTime(userId: string, courseId: string, videoId: string): number {
+    if (typeof window === 'undefined' || !userId) return 0
+    const key = this.getSessionTimeKey(userId, courseId, videoId)
+    const time = localStorage.getItem(key)
+    return time ? parseInt(time, 10) : 0
+  }
+
+  static deleteSessionTime(userId: string, courseId: string, videoId: string) {
+    if (typeof window === 'undefined' || !userId) return
+    const key = this.getSessionTimeKey(userId, courseId, videoId)
+    localStorage.removeItem(key)
+  }
+
   static getAllVideoProgress(userId: string): Array<VideoProgressData & { courseId: string }> {
-    if (typeof window === 'undefined') return []
+    if (typeof window === 'undefined' || !userId) return []
 
     const progressData: Array<VideoProgressData & { courseId: string }> = []
     

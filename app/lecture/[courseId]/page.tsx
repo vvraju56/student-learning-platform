@@ -12,11 +12,27 @@ import {
 import { useRealtimeFaceDetection } from "@/hooks/use-realtime-face-detection"
 import { auth } from "@/lib/firebase"
 import { saveVideoProgressToFirestore } from "@/lib/firebase"
+import { ProgressStorage } from "@/lib/progress-storage"
 
 export default function LecturePage() {
   const params = useParams()
   const router = useRouter()
   const courseId = params.courseId as string
+
+  // User state
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUserId(user.uid)
+      } else {
+        setUserId(null)
+        // Optionally redirect to login if not authenticated
+      }
+    })
+    return () => unsubscribe()
+  }, [])
 
   // Core monitoring states
   const [monitoringActive, setMonitoringActive] = useState(false)
@@ -37,14 +53,13 @@ export default function LecturePage() {
 
   // Load saved progress from localStorage
   useEffect(() => {
-    if (courseId) {
+    if (courseId && userId) {
       // Load completed videos
-      const saved = localStorage.getItem(`course_progress_${courseId}`)
+      const saved = ProgressStorage.getRawCourseProgress(userId, courseId)
       if (saved) {
         try {
-          const parsed = JSON.parse(saved)
-          if (parsed.completedVideos && Array.isArray(parsed.completedVideos)) {
-            setCompletedVideos(new Set(parsed.completedVideos))
+          if (saved.completedVideos && Array.isArray(saved.completedVideos)) {
+            setCompletedVideos(new Set(saved.completedVideos))
           }
         } catch (e) {
           console.error("Failed to load progress:", e)
@@ -52,20 +67,17 @@ export default function LecturePage() {
       }
 
       // Load saved session time for current video
-      const savedTime = localStorage.getItem(`sessionTime_${courseId}_${currentVideoIndex}`)
-      if (savedTime) {
-        const time = parseInt(savedTime, 10)
-        if (!isNaN(time) && time > 0) {
-          setSessionTime(time)
-          console.log(`📺 Resuming from saved time: ${time}s`)
-        }
+      const savedTime = ProgressStorage.getSessionTime(userId, courseId, currentVideoIndex.toString())
+      if (savedTime > 0) {
+        setSessionTime(savedTime)
+        console.log(`📺 Resuming from saved time: ${savedTime}s`)
       }
     }
-  }, [courseId, currentVideoIndex])
+  }, [courseId, userId, currentVideoIndex])
 
   // Save progress to localStorage when completedVideos changes
   useEffect(() => {
-    if (courseId && course) {
+    if (courseId && course && userId) {
       const totalVideos = course.modules[0]?.videos?.length || 0
       const progressPercent = totalVideos > 0 ? Math.round((completedVideos.size / totalVideos) * 100) : 0
       
@@ -76,45 +88,42 @@ export default function LecturePage() {
       }
       
       // Save in format expected by courses page
-      localStorage.setItem(`course_progress_${courseId}`, JSON.stringify(progressData))
+      ProgressStorage.saveCourseProgress(userId, courseId, progressData)
       console.log("💾 Progress saved:", progressData)
       
       // Save to Firestore for profile stats
-      const user = auth.currentUser
-      if (user && course) {
-        completedVideos.forEach(async (videoIdx) => {
-          const video = course.modules?.[0]?.videos?.[videoIdx]
-          if (video) {
-            await saveVideoProgressToFirestore(user.uid, {
-              videoId: `video-${videoIdx}`,
-              courseId: courseId,
-              videoTitle: video.title || `Video ${videoIdx + 1}`,
-              completed: true,
-              watchTime: video.duration || 0,
-              totalDuration: video.duration || 0
-            })
-          }
-        })
-      }
+      completedVideos.forEach(async (videoIdx) => {
+        const video = course.modules?.[0]?.videos?.[videoIdx]
+        if (video) {
+          await saveVideoProgressToFirestore(userId, {
+            videoId: `video-${videoIdx}`,
+            courseId: courseId,
+            videoTitle: video.title || `Video ${videoIdx + 1}`,
+            completed: true,
+            watchTime: video.duration || 0,
+            totalDuration: video.duration || 0
+          })
+        }
+      })
     }
-  }, [courseId, completedVideos, course])
+  }, [courseId, userId, completedVideos, course])
 
   // Save session time periodically
   useEffect(() => {
-    if (courseId && sessionTime > 0) {
+    if (courseId && userId && sessionTime > 0) {
       const saveInterval = setInterval(() => {
-        localStorage.setItem(`sessionTime_${courseId}_${currentVideoIndex}`, sessionTime.toString())
+        ProgressStorage.saveSessionTime(userId, courseId, currentVideoIndex.toString(), sessionTime)
       }, 5000)
       return () => clearInterval(saveInterval)
     }
-  }, [courseId, currentVideoIndex, sessionTime])
+  }, [courseId, userId, currentVideoIndex, sessionTime])
 
   // Clear saved session time when video is completed
   useEffect(() => {
-    if (timeLimitReached && courseId) {
-      localStorage.removeItem(`sessionTime_${courseId}_${currentVideoIndex}`)
+    if (timeLimitReached && courseId && userId) {
+      ProgressStorage.deleteSessionTime(userId, courseId, currentVideoIndex.toString())
     }
-  }, [timeLimitReached, courseId, currentVideoIndex])
+  }, [timeLimitReached, courseId, userId, currentVideoIndex])
 
   // Face detection hook - uses TensorFlow for real face detection
   const { 
@@ -455,12 +464,11 @@ export default function LecturePage() {
                   controls
                   onLoadedMetadata={(e) => {
                     setTotalDuration(e.currentTarget.duration)
-                    const savedTime = localStorage.getItem(`sessionTime_${courseId}_${currentVideoIndex}`)
-                    if (savedTime) {
-                      const time = parseInt(savedTime, 10)
-                      if (!isNaN(time) && time > 0 && time < e.currentTarget.duration) {
-                        e.currentTarget.currentTime = time
-                        console.log(`📺 Seeked to saved time: ${time}s`)
+                    if (userId) {
+                      const savedTime = ProgressStorage.getSessionTime(userId, courseId, currentVideoIndex.toString())
+                      if (savedTime > 0 && savedTime < e.currentTarget.duration) {
+                        e.currentTarget.currentTime = savedTime
+                        console.log(`📺 Seeked to saved time: ${savedTime}s`)
                       }
                     }
                   }}

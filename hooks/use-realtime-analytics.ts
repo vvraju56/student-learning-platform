@@ -84,7 +84,7 @@ function countCompletedVideosFromVideos(videosData: any): number {
 function getLocalCourseProgress(userId: string, courseId: string): { completedVideos: number; progress: number; totalVideos: number; timeSpent: number } {
   let result = { completedVideos: 0, progress: 0, totalVideos: 10, timeSpent: 0 }
   
-  if (typeof window === 'undefined') {
+  if (typeof window === 'undefined' || !userId) {
     return result
   }
   
@@ -96,18 +96,15 @@ function getLocalCourseProgress(userId: string, courseId: string): { completedVi
       totalVideos: courseProgress.totalVideos || 10,
       timeSpent: courseProgress.totalWatchTime || 0
     }
-    console.log(`📊 ProgressStorage(${courseId}):`, result)
+    console.log(`📊 ProgressStorage(${courseId}) for user ${userId}:`, result)
   } catch (e) {
     console.error("Error reading ProgressStorage:", e)
   }
   
   try {
-    const saved = localStorage.getItem(`course_progress_${courseId}`)
-    console.log(`📊 localStorage[course_progress_${courseId}]:`, saved)
-    
-    if (saved) {
-      const parsed = JSON.parse(saved)
-      console.log(`📊 Parsed course_progress_${courseId}:`, parsed)
+    const parsed = ProgressStorage.getRawCourseProgress(userId, courseId)
+    if (parsed) {
+      console.log(`📊 Parsed course_progress_${courseId} for user ${userId}:`, parsed)
       
       const completedFromCourse = Array.isArray(parsed.completedVideos) 
         ? parsed.completedVideos.length 
@@ -123,7 +120,7 @@ function getLocalCourseProgress(userId: string, courseId: string): { completedVi
       }
     }
   } catch (e) {
-    console.error("Error reading course_progress:", e)
+    console.error("Error reading course_progress from ProgressStorage:", e)
   }
   
   return result

@@ -109,13 +109,11 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
           let progressData = coursesProgressData[courseId] || {};
           let completedVideos = progressData.completedVideos || 0;
           
-          // If Firebase has no progress, check localStorage
-          if (completedVideos === 0) {
-            const localStorageKey = `course_progress_${courseId}`
-            const localData = localStorage.getItem(localStorageKey)
-            if (localData) {
+          // If Firebase has no progress, check localStorage via ProgressStorage
+          if (completedVideos === 0 && user?.uid) {
+            const parsed = ProgressStorage.getRawCourseProgress(user.uid, courseId)
+            if (parsed) {
               try {
-                const parsed = JSON.parse(localData)
                 completedVideos = Array.isArray(parsed.completedVideos) ? parsed.completedVideos.length : (parsed.completedVideos || 0)
               } catch (e) {
                 // Failed to parse
@@ -151,21 +149,22 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
         // Failed to load progress
         setIsLoading(false)
         
-        // Fallback: Try loading from localStorage only
+        // Fallback: Try loading from ProgressStorage (localStorage)
         try {
           const localCourseProgress: {[key: string]: {progress: number, completedVideos: number, totalVideos: number}} = {}
-          let totalProgressSum = 0
           let totalCompletedCount = 0
-          let coursesWithProgress = 0
           
-          for (const courseDataFromLib of courses) {
-            const courseId = courseDataFromLib.id
-            const totalVideosInCourse = courseDataFromLib.modules[0].videos.length
-            const localData = localStorage.getItem(`course_progress_${courseId}`)
-            
-            if (localData) {
-              const parsed = JSON.parse(localData)
-              const completedVideos = Array.isArray(parsed.completedVideos) ? parsed.completedVideos.length : (parsed.completedVideos || 0)
+          if (user?.uid) {
+            for (const courseDataFromLib of courses) {
+              const courseId = courseDataFromLib.id
+              const totalVideosInCourse = courseDataFromLib.modules[0].videos.length
+              const parsed = ProgressStorage.getRawCourseProgress(user.uid, courseId)
+              
+              let completedVideos = 0
+              if (parsed) {
+                completedVideos = Array.isArray(parsed.completedVideos) ? parsed.completedVideos.length : (parsed.completedVideos || 0)
+              }
+              
               const progress = totalVideosInCourse > 0 ? (completedVideos / totalVideosInCourse) * 100 : 0
               
               localCourseProgress[courseId] = {
@@ -174,19 +173,16 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
                 totalVideos: totalVideosInCourse
               }
               
-              totalProgressSum += progress
               totalCompletedCount += completedVideos
-            } else {
-              localCourseProgress[courseId] = { progress: 0, completedVideos: 0, totalVideos: totalVideosInCourse }
             }
+            
+            const totalVideosAllCourses = courses.reduce((sum, c) => sum + (c.modules[0]?.videos?.length || 0), 0)
+            const overallProgressValue = totalVideosAllCourses > 0 ? (totalCompletedCount / totalVideosAllCourses) * 100 : 0
+            
+            setCourseProgress(localCourseProgress)
+            setOverallProgress(Math.round(overallProgressValue))
+            setLearningStats(prev => ({ ...prev, completedVideos: totalCompletedCount }))
           }
-          
-          const totalVideosAllCourses = courses.reduce((sum, c) => sum + (c.modules[0]?.videos?.length || 0), 0)
-          const overallProgressValue = totalVideosAllCourses > 0 ? (totalCompletedCount / totalVideosAllCourses) * 100 : 0
-          
-          setCourseProgress(localCourseProgress)
-          setOverallProgress(Math.round(overallProgressValue))
-          setLearningStats(prev => ({ ...prev, completedVideos: totalCompletedCount }))
         } catch (localError) {
           // Failed to load from localStorage
         }

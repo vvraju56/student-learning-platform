@@ -166,13 +166,22 @@ export class DataMigrationService {
    * Check if migration is needed
    */
   isMigrationNeeded(userId: string): boolean {
-    // Check if user has data in Firebase's new format
-    // If not, check localStorage
-    const hasLocalData = localStorage.getItem("course_progress_web-development") ||
+    if (!userId) return false
+
+    // 1. Check if user already has data in the NEW format (user-scoped)
+    const hasNewData = localStorage.getItem(`course_progress_web-development_${userId}`) ||
+      localStorage.getItem(`course_progress_app-development_${userId}`) ||
+      localStorage.getItem(`course_progress_game-development_${userId}`)
+    
+    // If they already have new-format data, we assume migration is done or not needed
+    if (hasNewData) return false
+
+    // 2. Check if there's OLD format data (not user-scoped)
+    const hasOldData = localStorage.getItem("course_progress_web-development") ||
       localStorage.getItem("course_progress_app-development") ||
       localStorage.getItem("course_progress_game-development")
 
-    return !!hasLocalData
+    return !!hasOldData
   }
 
   /**

@@ -12,6 +12,7 @@ import {
   Play, Pause, Wifi, WifiOff, RefreshCw, Video, ChevronDown
 } from "lucide-react"
 import { auth } from "@/lib/firebase"
+import { ProgressStorage } from "@/lib/progress-storage"
 
 function formatTime(seconds: number): string {
   if (!seconds || seconds < 0) return "0m"
@@ -639,13 +640,17 @@ export default function ReportsPage() {
         <div className="mt-8 p-4 bg-gray-900/50 border border-gray-800 rounded-lg">
           <h3 className="text-sm font-medium text-gray-400 mb-2">Debug Info (click to expand)</h3>
           <details className="text-xs text-gray-500">
-            <summary className="cursor-pointer">View localStorage data</summary>
+            <summary className="cursor-pointer">View user-scoped localStorage data</summary>
             <pre className="mt-2 p-2 bg-gray-800 rounded overflow-auto max-h-40">
               {typeof window !== 'undefined' ? JSON.stringify({
-                course_progress_web: localStorage.getItem('course_progress_web-development'),
-                course_progress_app: localStorage.getItem('course_progress_app-development'),
-                course_progress_game: localStorage.getItem('course_progress_game-development'),
-                videoKeys: Object.keys(localStorage).filter(k => k.startsWith('video_progress_')).slice(0, 5)
+                userId: userId,
+                course_progress_web: userId ? ProgressStorage.getRawCourseProgress(userId, 'web-development') : 'No user',
+                course_progress_app: userId ? ProgressStorage.getRawCourseProgress(userId, 'app-development') : 'No user',
+                course_progress_game: userId ? ProgressStorage.getRawCourseProgress(userId, 'game-development') : 'No user',
+                videoKeys: Object.keys(localStorage)
+                  .filter(k => k.startsWith('video_progress_'))
+                  .filter(k => userId ? k.includes(`_${userId}_`) : true)
+                  .slice(0, 5)
               }, null, 2) : 'Loading...'}
             </pre>
           </details>

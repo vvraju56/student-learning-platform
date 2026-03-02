@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { courses } from "@/lib/courses-data"
 import { FirebaseProgressManager } from "@/lib/firebase-progress"
+import { auth } from "@/lib/firebase"
+import { ProgressStorage } from "@/lib/progress-storage"
 import { Play, Monitor, Smartphone, Target, ArrowLeft, Clock, Video } from "lucide-react"
 
 const courseIcons: { [key: string]: { icon: JSX.Element; color: string } } = {
@@ -18,21 +20,34 @@ export default function CourseSelectPage() {
   const router = useRouter()
   const [courseProgress, setCourseProgress] = useState<{[key: string]: {progress: number, completedVideos: number, totalVideos: number}}>({})
   const [isLoading, setIsLoading] = useState(true)
+  const [userId, setUserId] = useState<string | null>(null)
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        setUserId(user.uid)
+      } else {
+        setUserId(null)
+      }
+    })
+    return () => unsubscribe()
+  }, [])
 
   useEffect(() => {
     const loadProgress = async () => {
+      if (!userId) return
+
       try {
         const localCourseProgress: {[key: string]: {progress: number, completedVideos: number, totalVideos: number}} = {}
         
         for (const course of courses) {
           const courseId = course.id
           const totalVideosInCourse = course.modules[0]?.videos?.length || 0
-          const localData = localStorage.getItem(`course_progress_${courseId}`)
+          const parsed = ProgressStorage.getRawCourseProgress(userId, courseId)
           
           let completedVideos = 0
-          if (localData) {
+          if (parsed) {
             try {
-              const parsed = JSON.parse(localData)
               completedVideos = Array.isArray(parsed.completedVideos) ? parsed.completedVideos.length : (parsed.completedVideos || 0)
             } catch (e) {
               completedVideos = 0
@@ -56,8 +71,14 @@ export default function CourseSelectPage() {
       }
     }
     
-    loadProgress()
-  }, [])
+    if (userId) {
+      loadProgress()
+    } else {
+      // If we've waited and still no user, stop loading
+      const timer = setTimeout(() => setIsLoading(false), 2000)
+      return () => clearTimeout(timer)
+    }
+  }, [userId])
 
   if (isLoading) {
     return (
