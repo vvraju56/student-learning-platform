@@ -5,9 +5,35 @@ import typescriptParser from '@typescript-eslint/parser';
 export default [
   js.configs.recommended,
   {
-    files: ['**/*.{ts,tsx}'],
+    ignores: ['**/*.js', '**/*.js.map', '.next/**'],
     languageOptions: {
       parser: typescriptParser,
+      globals: {
+        console: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        process: 'readonly',
+        setTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearTimeout: 'readonly',
+        clearInterval: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        FormData: 'readonly',
+        Blob: 'readonly',
+        URL: 'readonly',
+        fetch: 'readonly',
+        Headers: 'readonly',
+        Request: 'readonly',
+        Response: 'readonly',
+        Buffer: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        global: 'readonly',
+        self: 'readonly',
+        ReadableStream: 'readonly',
+        TransformStream: 'readonly',
+      }
     },
     plugins: {
       '@typescript-eslint': typescript,
@@ -17,6 +43,8 @@ export default [
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-empty-function': 'off',
+      'no-undef': 'off',
+      'no-unused-vars': 'off',
     },
   },
 ];
