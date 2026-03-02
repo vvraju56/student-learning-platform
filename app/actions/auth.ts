@@ -7,7 +7,9 @@ import { ref, set, get, remove } from "firebase/database"
 import nodemailer from "nodemailer"
 
 const transporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.gmail.com",
+  port: 465,
+  secure: true,
   auth: {
     user: 'codetech9227@gmail.com',
     pass: 'ysxfygnfiorxtbew'
