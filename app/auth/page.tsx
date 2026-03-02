@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { auth } from "@/lib/firebase"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { sendOTP, verifyOTPAndSignup } from "@/app/actions/auth"
+import { signup } from "@/app/actions/auth"
 
 function AuthPageContent() {
   const router = useRouter()
@@ -18,9 +18,6 @@ function AuthPageContent() {
   const [loginError, setLoginError] = useState<string | null>(null)
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
-  
-  const [signupStep, setSignupStep] = useState<"form" | "otp">("form")
-  const [otpValue, setOtpValue] = useState("")
 
   const [loginForm, setLoginForm] = useState({ email: "", password: "" })
   const [registerForm, setRegisterForm] = useState({ username: "", email: "", password: "" })
@@ -65,35 +62,12 @@ function AuthPageContent() {
     
     setLoading(true)
     try {
-      const result = await sendOTP(registerForm.email)
-      if (result.error) {
-        setRegisterError(result.error)
-      } else {
-        setSignupStep("otp")
-      }
-    } catch (err) {
-      setRegisterError("Something went wrong. Please try again.")
-    }
-    setLoading(false)
-  }
+      const formData = new FormData()
+      formData.append("email", registerForm.email)
+      formData.append("password", registerForm.password)
+      formData.append("username", registerForm.username)
 
-  const handleVerifyOTP = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setRegisterError(null)
-    
-    if (otpValue.length !== 6) {
-      setRegisterError("Please enter a valid 6-digit code")
-      return
-    }
-
-    const formData = new FormData()
-    formData.append("email", registerForm.email)
-    formData.append("password", registerForm.password)
-    formData.append("username", registerForm.username)
-
-    setLoading(true)
-    try {
-      const result = await verifyOTPAndSignup(formData, otpValue)
+      const result = await signup(formData)
       if (result.error) {
         setRegisterError(result.error)
       } else {
@@ -101,13 +75,11 @@ function AuthPageContent() {
         setTimeout(() => {
           setIsToggled(false)
           setSuccess(false)
-          setSignupStep("form")
           setRegisterForm({ username: "", email: "", password: "" })
-          setOtpValue("")
         }, 2000)
       }
     } catch (err) {
-      setRegisterError("An unexpected error occurred.")
+      setRegisterError("Something went wrong. Please try again.")
     }
     setLoading(false)
   }
@@ -545,93 +517,60 @@ function AuthPageContent() {
         {/* Sign Up Panel */}
         <div className="credentials-panel signup-panel">
           <h2>Sign Up</h2>
-          {signupStep === "form" ? (
-            <form onSubmit={handleRegister}>
-              {registerError && <p className="error-msg">{registerError}</p>}
-              {success && <p className="success-msg">✓ Account created! Please sign in.</p>}
+          <form onSubmit={handleRegister}>
+            {registerError && <p className="error-msg">{registerError}</p>}
+            {success && <p className="success-msg">✓ Account created! Please sign in.</p>}
 
-              <div className="field-wrapper">
-                <input
-                  type="text"
-                  name="username"
-                  value={registerForm.username}
-                  onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
-                  required
-                />
-                <label>Username</label>
-              </div>
+            <div className="field-wrapper">
+              <input
+                type="text"
+                name="username"
+                value={registerForm.username}
+                onChange={(e) => setRegisterForm({ ...registerForm, username: e.target.value })}
+                required
+              />
+              <label>Username</label>
+            </div>
 
-              <div className="field-wrapper">
-                <input
-                  type="email"
-                  name="email"
-                  value={registerForm.email}
-                  onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
-                  required
-                />
-                <label>Email Address</label>
-              </div>
+            <div className="field-wrapper">
+              <input
+                type="email"
+                name="email"
+                value={registerForm.email}
+                onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                required
+              />
+              <label>Email Address</label>
+            </div>
 
-              <div className="field-wrapper">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  name="password"
-                  value={registerForm.password}
-                  onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
-                  required
-                  minLength={8}
-                />
-                <label>Password</label>
-                <button 
-                  type="button" 
-                  className="toggle-pass"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-              <p className="hint">Use 8+ characters with special character (!@#$%^&*)</p>
-
-              <button type="submit" className="submit-button" disabled={loading}>
-                {loading ? "Sending OTP..." : "Sign Up"}
+            <div className="field-wrapper">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={registerForm.password}
+                onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                required
+                minLength={8}
+              />
+              <label>Password</label>
+              <button 
+                type="button" 
+                className="toggle-pass"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? "Hide" : "Show"}
               </button>
-            </form>
-          ) : (
-            <form onSubmit={handleVerifyOTP}>
-              {registerError && <p className="error-msg">{registerError}</p>}
-              <p style={{ color: "rgba(255,255,255,0.7)", textAlign: "center", marginBottom: "20px", fontSize: "14px" }}>
-                We've sent a 6-digit code to <strong>{registerForm.email}</strong>
-              </p>
-              
-              <div className="field-wrapper">
-                <input
-                  type="text"
-                  value={otpValue}
-                  onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  placeholder="000000"
-                  required
-                  style={{ textAlign: "center", letterSpacing: "10px", fontSize: "24px" }}
-                />
-                <label style={{ top: "-10px", fontSize: "12px", color: "#00d4ff" }}>Enter 6-Digit Code</label>
-              </div>
+            </div>
+            <p className="hint">Use 8+ characters with special character (!@#$%^&*)</p>
 
-              <button type="submit" className="submit-button" disabled={loading}>
-                {loading ? "Verifying..." : "Verify & Complete"}
-              </button>
-
-              <p className="switch-link">
-                Didn't get the code? 
-                <a onClick={handleRegister}>Resend</a>
-              </p>
-              <p className="switch-link" style={{ marginTop: "10px" }}>
-                <a onClick={() => setSignupStep("form")}>Back to Sign Up</a>
-              </p>
-            </form>
-          )}
+            <button type="submit" className="submit-button" disabled={loading}>
+              {loading ? "Creating Account..." : "Sign Up"}
+            </button>
+          </form>
 
           <p className="switch-link">
             Already have an account? 
-            <a onClick={() => { setIsToggled(false); setSignupStep("form"); }}>Sign In</a>
+            <a onClick={() => setIsToggled(false)}>Sign In</a>
           </p>
         </div>
 

@@ -5,7 +5,8 @@ import typescriptParser from '@typescript-eslint/parser';
 export default [
   js.configs.recommended,
   {
-    ignores: ['**/*.js', '**/*.js.map', '.next/**'],
+    files: ['**/*.{ts,tsx}'],
+    ignores: ['.next/**', 'node_modules/**'],
     languageOptions: {
       parser: typescriptParser,
       globals: {
@@ -33,6 +34,12 @@ export default [
         self: 'readonly',
         ReadableStream: 'readonly',
         TransformStream: 'readonly',
+        alert: 'readonly',
+        confirm: 'readonly',
+        navigateTo: 'readonly',
+        handleLogout: 'readonly',
+        continueCourse: 'readonly',
+        startQuiz: 'readonly',
       }
     },
     plugins: {
