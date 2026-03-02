@@ -3,34 +3,96 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
-import { auth } from "../../lib/firebase"
-import { getAllUsers, getUserDetails, softDeleteUser, restoreUser, permanentDeleteUser, resetUserPassword, getDeletedUsers } from "../../app/actions/admin"
+import { collection, getDocs, doc, updateDoc, deleteDoc, getDoc, query, where } from "firebase/firestore"
+import { ref, get, remove } from "firebase/database"
+import { auth, db, realtimeDb } from "../../lib/firebase"
+import { softDeleteUser, restoreUser, permanentDeleteUser, resetUserPassword, getDeletedUsers } from "../../app/actions/admin"
 
 const ADMIN_EMAIL = "admin@123.in"
 
-interface User {
-  uid: string
-  email: string
-  username: string
-  role: string
-  createdAt: string
-  deleted: boolean
-  deletedAt: number | null
-  restoreBefore: number | null
-  progress?: any
+// Client-side fetching function to replace the Server Action call
+async function fetchAllUsersClient() {
+  try {
+    const usersRef = collection(db, "users")
+    const querySnapshot = await getDocs(usersRef)
+    let userDocs = querySnapshot.docs.map(doc => ({ ...doc.data(), uid: (doc.data() as any).uid || doc.id }))
+    
+    const profilesRef = collection(db, "profiles")
+    const profilesSnapshot = await getDocs(profilesRef)
+    const profileDocs = profilesSnapshot.docs.map(doc => {
+      const data = doc.data() as any
+      return {
+        uid: data.id || doc.id,
+        email: data.email,
+        username: data.username,
+        role: data.role || "student",
+        createdAt: data.created_at || new Date().toISOString(),
+        deleted: data.deleted || false
+      }
+    })
+
+    const mergedUsersMap = new Map()
+    profileDocs.forEach(u => mergedUsersMap.set(u.uid, u))
+    userDocs.forEach((u: any) => mergedUsersMap.set(u.uid, { ...mergedUsersMap.get(u.uid), ...u }))
+    
+    const users: any[] = []
+    for (const userData of mergedUsersMap.values()) {
+      if (userData.email === ADMIN_EMAIL) continue
+      if (userData.deleted === true) continue
+      
+      let progressData: any = {}
+      try {
+        const progressRef = ref(realtimeDb, `users/${userData.uid}/learning`)
+        const progressSnapshot = await get(progressRef)
+        if (progressSnapshot.exists()) {
+          progressData = progressSnapshot.val()
+        }
+      } catch (e) {}
+      
+      users.push({ ...userData, progress: progressData })
+    }
+    return { success: true, users }
+  } catch (err: any) {
+    console.error("Client-side fetch error:", err)
+    return { success: false, error: err.message }
+  }
 }
 
-interface UserDetails {
-  uid: string
-  email: string
-  username: string
-  role: string
-  createdAt: string
-  progress?: any
-  overall?: any
-  quizAttempts?: any[]
-  focusAnalytics?: any[]
-  [key: string]: any
+async function fetchDeletedUsersClient() {
+  try {
+    const profilesRef = collection(db, "profiles")
+    const profilesSnapshot = await getDocs(profilesRef)
+    const usersRef = collection(db, "users")
+    const querySnapshot = await getDocs(usersRef)
+    
+    const mergedUsersMap = new Map()
+    profilesSnapshot.docs.forEach(doc => {
+      const data = doc.data() as any
+      const uid = data.id || doc.id
+      mergedUsersMap.set(uid, { uid, ...data })
+    })
+    querySnapshot.docs.forEach(doc => {
+      const data = doc.data() as any
+      const uid = data.uid || doc.id
+      mergedUsersMap.set(uid, { ...mergedUsersMap.get(uid), ...data })
+    })
+    
+    const deletedUsers: any[] = []
+    for (const userData of mergedUsersMap.values()) {
+      if (userData.deleted === true) {
+        deletedUsers.push({
+          uid: userData.uid,
+          email: userData.email,
+          username: userData.username,
+          deletedAt: userData.deletedAt,
+          restoreBefore: userData.restoreBefore
+        })
+      }
+    }
+    return { success: true, deletedUsers }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
 }
 
 export default function AdminPage() {
@@ -47,11 +109,10 @@ export default function AdminPage() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       if (!currentUser) {
-        router.push("/login")
+        router.push("/auth?mode=signin")
         return
       }
 
-      // Check if admin
       if (currentUser.email !== ADMIN_EMAIL) {
         router.push("/dashboard")
         return
@@ -68,7 +129,7 @@ export default function AdminPage() {
 
   const loadUsers = async () => {
     try {
-      const result = await getAllUsers()
+      const result = await fetchAllUsersClient()
       if (result.success && result.users) {
         setUsers(result.users)
       } else {
@@ -80,7 +141,7 @@ export default function AdminPage() {
   }
 
   const loadDeletedUsers = async () => {
-    const result = await getDeletedUsers()
+    const result = await fetchDeletedUsersClient()
     if (result.success && result.deletedUsers) {
       setDeletedUsers(result.deletedUsers)
     }
@@ -88,11 +149,44 @@ export default function AdminPage() {
 
   const handleViewDetails = async (userId: string) => {
     setActionLoading(userId)
-    const result = await getUserDetails(userId)
-    if (result.success && result.user) {
-      setSelectedUser(result.user)
-    } else {
-      setMessage({ type: "error", text: result.error || "Failed to load user details" })
+    try {
+      // Fetch details directly on client
+      const userDoc = await getDoc(doc(db, "users", userId))
+      if (!userDoc.exists()) {
+        setMessage({ type: "error", text: "User not found" })
+        setActionLoading(null)
+        return
+      }
+      
+      const userData = userDoc.data() as any
+      let progressData = {}, overallData = {}
+      
+      try {
+        const progressRef = ref(realtimeDb, `users/${userId}/learning`)
+        const snap = await get(progressRef)
+        if (snap.exists()) {
+          const data = snap.val()
+          progressData = data.courses || {}
+          overallData = data.overallProgress || {}
+        }
+      } catch (e) {}
+
+      const quizSnapshot = await getDocs(query(collection(db, "quiz_attempts"), where("user_id", "==", userId)))
+      const quizAttempts = quizSnapshot.docs.map(doc => doc.data())
+      
+      const focusSnapshot = await getDocs(query(collection(db, "focus_analytics"), where("user_id", "==", userId)))
+      const focusAnalytics = focusSnapshot.docs.map(doc => doc.data())
+
+      setSelectedUser({
+        ...userData,
+        uid: userId,
+        progress: progressData,
+        overall: overallData,
+        quizAttempts,
+        focusAnalytics
+      })
+    } catch (err: any) {
+      setMessage({ type: "error", text: err.message })
     }
     setActionLoading(null)
   }
