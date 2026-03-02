@@ -63,20 +63,18 @@ export interface UserProgressData {
   lastUpdated: number
 }
 
-export const firebaseProgressService = new class FirebaseProgressService {
-  private get userId(): string | null {
-    return auth.currentUser?.uid || null
+export class FirebaseProgressService {
+  private userId: string | null = null
+
+  constructor() {
+    this.userId = auth.currentUser?.uid || null
   }
 
   // Initialize user data structure
   async initializeUserProgress(courseIds: string[]): Promise<void> {
-    const uid = this.userId
-    if (!uid) {
-      console.warn('Cannot initialize: User not authenticated')
-      return
-    }
+    if (!this.userId) throw new Error('User not authenticated')
 
-    const userPath = `users/${uid}`
+    const userPath = `users/${this.userId}`
     const userRef = ref(window.realtimeDb, userPath)
     
     try {
@@ -85,7 +83,7 @@ export const firebaseProgressService = new class FirebaseProgressService {
       if (!snapshot.exists()) {
         // Create initial user structure
         const initialData: UserProgressData = {
-          uid: uid,
+          uid: this.userId,
           courses: {},
           videos: {},
           overall: {
@@ -114,7 +112,7 @@ export const firebaseProgressService = new class FirebaseProgressService {
         })
 
         await set(userRef, initialData)
-        console.log(`✅ User progress initialized for: ${uid}`)
+        console.log('✅ User progress initialized')
       }
     } catch (error) {
       console.error('Error initializing user progress:', error)
@@ -124,11 +122,10 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Update video progress
   async updateVideoProgress(videoData: Partial<UserVideoData>): Promise<boolean> {
-    const uid = this.userId
-    if (!uid) return false
+    if (!this.userId) return false
 
     const videoKey = `${videoData.courseId}_${videoData.videoId}`
-    const videoPath = `users/${uid}/videos/${videoKey}`
+    const videoPath = `users/${this.userId}/videos/${videoKey}`
     const videoRef = ref(window.realtimeDb, videoPath)
 
     try {
@@ -152,12 +149,11 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Update course progress
   async updateCourseProgress(courseId: string): Promise<boolean> {
-    const uid = this.userId
-    if (!uid) return false
+    if (!this.userId) return false
 
     try {
       // Get all videos for this course
-      const videosRef = ref(window.realtimeDb, `users/${uid}/videos`)
+      const videosRef = ref(window.realtimeDb, `users/${this.userId}/videos`)
       const snapshot = await get(videosRef)
       
       let completedVideos = 0
@@ -175,10 +171,10 @@ export const firebaseProgressService = new class FirebaseProgressService {
         })
       }
 
-      const courseProgress = totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0
+      const courseProgress = Math.round((completedVideos / totalVideos) * 100)
       const quizUnlocked = completedVideos === totalVideos && totalVideos > 0
 
-      const coursePath = `users/${uid}/courses/${courseId}`
+      const coursePath = `users/${this.userId}/courses/${courseId}`
       const courseRef = ref(window.realtimeDb, coursePath)
       
       await update(courseRef, {
@@ -186,7 +182,8 @@ export const firebaseProgressService = new class FirebaseProgressService {
         completedVideos,
         progress: courseProgress,
         quizUnlocked,
-        lastUpdated: Date.now()
+        lastUpdated: Date.now(),
+        ...(quizUnlocked && !quizUnlocked ? { completedAt: Date.now() } : {})
       })
 
       // Update overall progress
@@ -203,11 +200,10 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Update overall progress
   async updateOverallProgress(): Promise<boolean> {
-    const uid = this.userId
-    if (!uid) return false
+    if (!this.userId) return false
 
     try {
-      const coursesRef = ref(window.realtimeDb, `users/${uid}/courses`)
+      const coursesRef = ref(window.realtimeDb, `users/${this.userId}/courses`)
       const snapshot = await get(coursesRef)
       
       let totalCourses = 0
@@ -232,7 +228,7 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
       const overallProgress = totalCourses > 0 ? Math.round(totalProgress / totalCourses) : 0
       
-      const overallPath = `users/${uid}/overall`
+      const overallPath = `users/${this.userId}/overall`
       const overallRef = ref(window.realtimeDb, overallPath)
       
       await update(overallRef, {
@@ -255,11 +251,10 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Get user course progress
   async getCourseProgress(courseId: string): Promise<UserCourseData | null> {
-    const uid = this.userId
-    if (!uid) return null
+    if (!this.userId) return null
 
     try {
-      const coursePath = `users/${uid}/courses/${courseId}`
+      const coursePath = `users/${this.userId}/courses/${courseId}`
       const courseRef = ref(window.realtimeDb, coursePath)
       const snapshot = await get(courseRef)
       
@@ -272,11 +267,10 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Get all courses progress
   async getAllCoursesProgress(): Promise<{ [courseId: string]: UserCourseData }> {
-    const uid = this.userId
-    if (!uid) return {}
+    if (!this.userId) return {}
 
     try {
-      const coursesPath = `users/${uid}/courses`
+      const coursesPath = `users/${this.userId}/courses`
       const coursesRef = ref(window.realtimeDb, coursesPath)
       const snapshot = await get(coursesRef)
       
@@ -289,11 +283,10 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Get overall progress
   async getOverallProgress(): Promise<UserOverallData | null> {
-    const uid = this.userId
-    if (!uid) return null
+    if (!this.userId) return null
 
     try {
-      const overallPath = `users/${uid}/overall`
+      const overallPath = `users/${this.userId}/overall`
       const overallRef = ref(window.realtimeDb, overallPath)
       const snapshot = await get(overallRef)
       
@@ -312,11 +305,10 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Mark quiz as completed
   async markQuizCompleted(courseId: string, score: number): Promise<boolean> {
-    const uid = this.userId
-    if (!uid) return false
+    if (!this.userId) return false
 
     try {
-      const coursePath = `users/${uid}/courses/${courseId}`
+      const coursePath = `users/${this.userId}/courses/${courseId}`
       const courseRef = ref(window.realtimeDb, coursePath)
       
       await update(courseRef, {
@@ -339,10 +331,9 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Real-time listener for courses progress
   onCoursesProgressChange(callback: (courses: { [courseId: string]: UserCourseData }) => void): () => void {
-    const uid = this.userId
-    if (!uid) return () => {}
+    if (!this.userId) return () => {}
 
-    const coursesPath = `users/${uid}/courses`
+    const coursesPath = `users/${this.userId}/courses`
     const coursesRef = ref(window.realtimeDb, coursesPath)
     
     return onValue(coursesRef, (snapshot) => {
@@ -353,10 +344,9 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Real-time listener for overall progress
   onOverallProgressChange(callback: (overall: UserOverallData) => void): () => void {
-    const uid = this.userId
-    if (!uid) return () => {}
+    if (!this.userId) return () => {}
 
-    const overallPath = `users/${uid}/overall`
+    const overallPath = `users/${this.userId}/overall`
     const overallRef = ref(window.realtimeDb, overallPath)
     
     return onValue(overallRef, (snapshot) => {
@@ -394,12 +384,11 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
   // Clean up old data (optional maintenance)
   async cleanupOldData(daysOld: number = 90): Promise<boolean> {
-    const uid = this.userId
-    if (!uid) return false
+    if (!this.userId) return false
 
     try {
       const cutoffTime = Date.now() - (daysOld * 24 * 60 * 60 * 1000)
-      const videosRef = ref(window.realtimeDb, `users/${uid}/videos`)
+      const videosRef = ref(window.realtimeDb, `users/${this.userId}/videos`)
       const snapshot = await get(videosRef)
       
       if (snapshot.exists()) {
@@ -414,7 +403,7 @@ export const firebaseProgressService = new class FirebaseProgressService {
 
         // Delete old incomplete video progress
         for (const videoKey of videosToDelete) {
-          const videoRef = ref(window.realtimeDb, `users/${uid}/videos/${videoKey}`)
+          const videoRef = ref(window.realtimeDb, `users/${this.userId}/videos/${videoKey}`)
           await remove(videoRef)
         }
 
@@ -428,3 +417,6 @@ export const firebaseProgressService = new class FirebaseProgressService {
     }
   }
 }
+
+// Export singleton instance
+export const firebaseProgressService = new FirebaseProgressService()
