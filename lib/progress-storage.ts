@@ -1,5 +1,8 @@
 "use client"
 
+import { ref, set, get, ref as dbRef, remove } from 'firebase/database'
+import { realtimeDb } from './firebase'
+
 interface VideoProgressData {
   videoId: string
   videoTitle?: string
@@ -17,21 +20,38 @@ interface VideoProgressData {
 
 export class ProgressStorage {
   private static getVideoProgressKey(userId: string, courseId: string, videoId: string): string {
+    if (!userId) {
+      console.error('ProgressStorage: userId is required!')
+      return ''
+    }
     return `video_progress_${courseId}_${userId}_${videoId}`
   }
 
   private static getCourseProgressKey(userId: string, courseId: string): string {
+    if (!userId) {
+      console.error('ProgressStorage: userId is required!')
+      return ''
+    }
     return `course_progress_${courseId}_${userId}`
   }
 
   private static getSessionTimeKey(userId: string, courseId: string, videoId: string): string {
+    if (!userId) {
+      console.error('ProgressStorage: userId is required!')
+      return ''
+    }
     return `sessionTime_${courseId}_${userId}_${videoId}`
   }
 
   static saveVideoProgress(userId: string, courseId: string, videoId: string, data: Partial<VideoProgressData>) {
-    if (typeof window === 'undefined' || !userId) return
+    if (typeof window === 'undefined' || !userId) {
+      console.warn('ProgressStorage: Cannot save - no userId')
+      return
+    }
 
     const key = this.getVideoProgressKey(userId, courseId, videoId)
+    if (!key) return
+
     const existingData = this.getVideoProgress(userId, courseId, videoId)
     
     const updatedData: VideoProgressData = {
@@ -51,6 +71,8 @@ export class ProgressStorage {
     if (typeof window === 'undefined' || !userId) return null
 
     const key = this.getVideoProgressKey(userId, courseId, videoId)
+    if (!key) return null
+
     const data = localStorage.getItem(key)
     
     if (!data) return null
@@ -64,19 +86,30 @@ export class ProgressStorage {
   }
 
   static saveCourseProgress(userId: string, courseId: string, data: any) {
-    if (typeof window === 'undefined' || !userId) return
+    if (typeof window === 'undefined' || !userId) {
+      console.warn('ProgressStorage: Cannot save course progress - no userId')
+      return
+    }
     const key = this.getCourseProgressKey(userId, courseId)
+    if (!key) return
+    
     localStorage.setItem(key, JSON.stringify(data))
   }
 
   static getRawCourseProgress(userId: string, courseId: string): any | null {
-    if (typeof window === 'undefined' || !userId) return null
+    if (typeof window === 'undefined' || !userId) {
+      console.warn('ProgressStorage: Cannot get course progress - no userId')
+      return null
+    }
     const key = this.getCourseProgressKey(userId, courseId)
+    if (!key) return null
+    
     const data = localStorage.getItem(key)
     if (!data) return null
     try {
       return JSON.parse(data)
     } catch (error) {
+      console.error('Error parsing course progress:', error)
       return null
     }
   }
@@ -84,162 +117,67 @@ export class ProgressStorage {
   static saveSessionTime(userId: string, courseId: string, videoId: string, time: number) {
     if (typeof window === 'undefined' || !userId) return
     const key = this.getSessionTimeKey(userId, courseId, videoId)
+    if (!key) return
     localStorage.setItem(key, time.toString())
   }
 
   static getSessionTime(userId: string, courseId: string, videoId: string): number {
     if (typeof window === 'undefined' || !userId) return 0
     const key = this.getSessionTimeKey(userId, courseId, videoId)
-    const time = localStorage.getItem(key)
-    return time ? parseInt(time, 10) : 0
+    if (!key) return 0
+    const data = localStorage.getItem(key)
+    return data ? parseInt(data, 10) || 0 : 0
   }
 
   static deleteSessionTime(userId: string, courseId: string, videoId: string) {
     if (typeof window === 'undefined' || !userId) return
     const key = this.getSessionTimeKey(userId, courseId, videoId)
-    localStorage.removeItem(key)
-  }
-
-  static getAllVideoProgress(userId: string): Array<VideoProgressData & { courseId: string }> {
-    if (typeof window === 'undefined' || !userId) return []
-
-    const progressData: Array<VideoProgressData & { courseId: string }> = []
-    
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith('video_progress_')) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key) || '{}')
-          
-          const keyParts = key.split('_')
-          if (keyParts.length >= 5 && keyParts[3] === userId) {
-            progressData.push({
-              ...data,
-              courseId: keyParts[2]
-            })
-          }
-        } catch (error) {
-          console.error('Error parsing progress data from localStorage:', error)
-        }
-      }
-    }
-    
-    return progressData
-  }
-
-  static getCourseProgress(userId: string, courseId: string): {
-    totalVideos: number
-    completedVideos: number
-    totalWatchTime: number
-    recentVideos: VideoProgressData[]
-    overallProgress: number
-  } {
-    const allProgress = this.getAllVideoProgress(userId)
-    const courseProgress = allProgress.filter(p => p.courseId === courseId)
-    
-    const completedVideos = courseProgress.filter(p => p.completed).length
-    const totalWatchTime = courseProgress.reduce((sum, p) => sum + (p.validWatchTime || 0), 0)
-    const recentVideos = courseProgress
-      .sort((a, b) => new Date(b.lastWatchedTime).getTime() - new Date(a.lastWatchedTime).getTime())
-      .slice(0, 10)
-    
-    // Calculate overall progress based on completed videos and partial progress
-    let totalProgress = 0
-    courseProgress.forEach(video => {
-      if (video.completed) {
-        totalProgress += 100
-      } else if (video.totalDuration > 0) {
-        const partialProgress = (video.validWatchTime || 0) / video.totalDuration * 100
-        totalProgress += Math.min(partialProgress, 99) // Cap at 99% for incomplete videos
-      }
-    })
-    
-    const overallProgress = courseProgress.length > 0 ? Math.round(totalProgress / courseProgress.length) : 0
-
-    return {
-      totalVideos: courseProgress.length,
-      completedVideos,
-      totalWatchTime,
-      recentVideos,
-      overallProgress
-    }
-  }
-
-  static getContinueLearningData(userId: string): {
-    mostRecentCourse: string | null
-    mostRecentVideo: VideoProgressData | null
-    inProgressVideos: VideoProgressData[]
-    recentVideos: VideoProgressData[]
-  } {
-    const allProgress = this.getAllVideoProgress(userId)
-    
-    const sortedByTime = allProgress.sort((a, b) => 
-      new Date(b.lastWatchedTime).getTime() - new Date(a.lastWatchedTime).getTime()
-    )
-    
-    const inProgressVideos = allProgress.filter(p => !p.completed)
-    const recentVideos = sortedByTime.slice(0, 6)
-    
-    const mostRecentVideo = sortedByTime[0] || null
-    const mostRecentCourse = mostRecentVideo?.courseId || null
-
-    return {
-      mostRecentCourse,
-      mostRecentVideo,
-      inProgressVideos,
-      recentVideos
-    }
-  }
-
-  static deleteVideoProgress(userId: string, courseId: string, videoId: string) {
-    if (typeof window === 'undefined') return
-
-    const key = this.getVideoProgressKey(userId, courseId, videoId)
+    if (!key) return
     localStorage.removeItem(key)
   }
 
   static clearAllProgress(userId: string) {
-    if (typeof window === 'undefined') return
-
+    if (typeof window === 'undefined' || !userId) return
+    
     const keysToRemove: string[] = []
     
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i)
-      if (key && key.startsWith('video_progress_') && key.includes(`_${userId}_`)) {
+      if (key && key.includes(`_${userId}_`)) {
         keysToRemove.push(key)
       }
     }
     
-    keysToRemove.forEach(key => localStorage.removeItem(key))
-    console.log(`Cleared ${keysToRemove.length} progress entries for user ${userId}`)
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key)
+      console.log('Cleared progress key:', key)
+    })
   }
 
-  // Debug function to view all stored progress
-  static debugStorage(userId: string) {
+  static clearOldSharedProgress() {
     if (typeof window === 'undefined') return
-
-    console.log('=== localStorage Debug for User:', userId, '===')
     
-    const allProgress = this.getAllVideoProgress(userId)
-    console.log('Total video progress entries:', allProgress.length)
+    console.log('Checking for old shared progress data...')
     
-    const byCourse: Record<string, VideoProgressData[]> = {}
-    allProgress.forEach(progress => {
-      if (!byCourse[progress.courseId]) {
-        byCourse[progress.courseId] = []
+    const oldKeys: string[] = []
+    const courseIds = ['web-development', 'app-development', 'game-development']
+    
+    for (const courseId of courseIds) {
+      const oldKey = `course_progress_${courseId}`
+      if (localStorage.getItem(oldKey)) {
+        oldKeys.push(oldKey)
       }
-      byCourse[progress.courseId].push(progress)
-    })
+    }
     
-    Object.entries(byCourse).forEach(([courseId, videos]) => {
-      const completed = videos.filter(v => v.completed).length
-      console.log(`Course ${courseId}: ${videos.length} videos, ${completed} completed`)
-      videos.forEach(video => {
-        console.log(`  - ${video.videoId}: ${video.completed ? '✅' : '⏳'} ${Math.round((video.validWatchTime || 0) / video.totalDuration * 100)}%`)
+    if (oldKeys.length > 0) {
+      console.log('Found old shared progress data:', oldKeys)
+      oldKeys.forEach(key => {
+        localStorage.removeItem(key)
+        console.log('Removed old shared key:', key)
       })
-    })
-    
-    const continueData = this.getContinueLearningData(userId)
-    console.log('Continue Learning Data:', continueData)
+      console.log('Old shared progress data cleared!')
+    } else {
+      console.log('No old shared progress data found')
+    }
   }
 }

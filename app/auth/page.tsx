@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { auth } from "@/lib/firebase"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { signup } from "@/app/actions/auth"
+import { ProgressStorage } from "@/lib/progress-storage"
 
 function AuthPageContent() {
   const router = useRouter()
@@ -29,6 +30,8 @@ function AuthPageContent() {
 
     try {
       await signInWithEmailAndPassword(auth, loginForm.email, loginForm.password)
+      // Clear old shared progress data to prevent data leakage
+      ProgressStorage.clearOldSharedProgress()
       router.push("/dashboard")
     } catch (err: any) {
       if (err.code === "auth/invalid-credential") {

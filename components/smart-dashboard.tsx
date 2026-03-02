@@ -14,6 +14,7 @@ import { MonitoringProvider, useMonitoring } from "../contexts/monitoring-contex
 import { FirebaseProgressManager } from "../lib/firebase-progress"
 import { videoSyncService } from "../services/video-sync-service"
 import { courses } from "../lib/courses-data"
+import { ProgressStorage } from "../lib/progress-storage"
 
 interface SmartDashboardProps {
   user: any
