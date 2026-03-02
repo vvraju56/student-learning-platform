@@ -35,7 +35,12 @@ function AuthPageContent() {
       await signInWithEmailAndPassword(auth, email, password)
       // Clear old shared progress data to prevent data leakage
       ProgressStorage.clearOldSharedProgress()
-      router.push("/dashboard")
+      
+      if (email === "admin@123.in") {
+        router.push("/admin")
+      } else {
+        router.push("/dashboard")
+      }
     } catch (err: any) {
       if (err.code === "auth/invalid-credential") {
         setLoginError("Invalid email or password")

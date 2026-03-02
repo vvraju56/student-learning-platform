@@ -92,7 +92,7 @@ export default function ProfilePage() {
               <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
             </div>
             <Button asChild variant="outline">
-              <Link href="/dashboard">Back to Dashboard</Link>
+              <Link href={user?.email === "admin@123.in" ? "/admin" : "/dashboard"}>Back to Dashboard</Link>
             </Button>
           </div>
         </div>

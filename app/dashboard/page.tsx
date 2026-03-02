@@ -20,6 +20,12 @@ export default function DashboardPage() {
         return
       }
 
+      // Redirect admin to admin panel
+      if (currentUser.email === "admin@123.in") {
+        router.push("/admin")
+        return
+      }
+
       setUser(currentUser)
       setProfile({
         displayName: currentUser.displayName,
