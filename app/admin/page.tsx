@@ -263,32 +263,32 @@ export default function AdminPage() {
   }
 
   const handlePermanentDelete = async (userId: string) => {
-    if (!confirm("⚠️ PERMANENT DELETE! This cannot be undone. Are you sure?")) return
+    if (!confirm("⚠️ PERMANENT DELETE! This will remove user from Database AND Authentication list. Are you sure?")) return
     
     setActionLoading(userId)
     try {
-      // 1. Delete Firestore main records
-      await deleteDoc(doc(db, "users", userId))
-      await deleteDoc(doc(db, "profiles", userId))
+      // Call the new Admin SDK API route
+      const response = await fetch('/api/admin/delete-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: userId,
+          adminEmail: ADMIN_EMAIL
+        }),
+      });
+
+      const result = await response.json();
       
-      // 2. Delete Firestore related collections
-      const collectionsToDelete = ["video_progress", "quiz_attempts", "focus_analytics"]
-      for (const colName of collectionsToDelete) {
-        const q = query(collection(db, colName), where("user_id", "==", userId))
-        const snapshot = await getDocs(q)
-        const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref))
-        await Promise.all(deletePromises)
+      if (result.success) {
+        setMessage({ type: "success", text: "User permanently deleted from Database and Authentication list" })
+        await loadUsers()
+        await loadDeletedUsers()
+        setSelectedUser(null)
+      } else {
+        throw new Error(result.error || "Failed to delete user");
       }
-
-      // 3. Delete from Realtime Database
-      try {
-        await remove(ref(realtimeDb, `users/${userId}`))
-      } catch (e) {}
-
-      setMessage({ type: "success", text: "User and all associated data permanently deleted" })
-      await loadUsers()
-      await loadDeletedUsers()
-      setSelectedUser(null)
     } catch (err: any) {
       setMessage({ type: "error", text: "Permanent delete error: " + err.message })
     }
