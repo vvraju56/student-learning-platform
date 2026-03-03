@@ -3,9 +3,16 @@ import { adminAuth, adminDb, adminRealtime } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
+    // 1. Check if Admin SDK initialized correctly
+    if (!adminAuth || !adminDb || !adminRealtime) {
+      return NextResponse.json({ 
+        error: "Firebase Admin SDK not initialized. Check server logs for ASN.1 or key errors." 
+      }, { status: 500 });
+    }
+
     const { userId, adminEmail } = await request.json();
 
-    // 1. Security check: Only the designated admin email can trigger this
+    // 2. Security check
     if (adminEmail !== "admin@123.in") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
@@ -14,22 +21,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    console.log(`Starting permanent deletion for user: ${userId}`);
-
-    // 2. Delete from Firebase Authentication (This is what you needed!)
+    // 3. Delete from Firebase Authentication
     try {
       await adminAuth.deleteUser(userId);
-      console.log('Successfully deleted user from Firebase Auth');
     } catch (authError: any) {
-      console.error('Error deleting from Firebase Auth:', authError.message);
-      // If user doesn't exist in Auth, we continue to clean up DB
+      console.error('Auth deletion skip (might already be gone):', authError.message);
     }
 
-    // 3. Delete Firestore Profile and User records
+    // 4. Delete Firestore records
     await adminDb.collection('users').doc(userId).delete();
     await adminDb.collection('profiles').doc(userId).delete();
 
-    // 4. Delete Firestore related collections (progress, quizzes, etc.)
+    // 5. Delete related collections
     const collections = ["video_progress", "quiz_attempts", "focus_analytics"];
     for (const colName of collections) {
       const snapshot = await adminDb.collection(colName).where('user_id', '==', userId).get();
@@ -38,10 +41,10 @@ export async function POST(request: NextRequest) {
       await batch.commit();
     }
 
-    // 5. Delete from Realtime Database
+    // 6. Delete from Realtime Database
     await adminRealtime.ref(`users/${userId}`).remove();
 
-    return NextResponse.json({ success: true, message: "User permanently deleted from Auth and Database" });
+    return NextResponse.json({ success: true, message: "User completely removed" });
   } catch (error: any) {
     console.error('Permanent delete API error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

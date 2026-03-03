@@ -2,52 +2,58 @@ import * as admin from 'firebase-admin';
 import * as fs from 'fs';
 import * as path from 'path';
 
-if (!admin.apps.length) {
-  let serviceAccount: any = null;
+function initializeAdmin() {
+  if (admin.apps.length > 0) return admin.apps[0];
 
-  // Search for any JSON file that looks like a service account
-  const cwd = process.cwd();
-  const files = fs.readdirSync(cwd);
-  const jsonFile = files.find(f => f.endsWith('.json') && f.includes('firebase-adminsdk'));
-  
-  const jsonPath = jsonFile ? path.join(cwd, jsonFile) : path.join(cwd, 'firebase-service-account.json');
-  
-  if (fs.existsSync(jsonPath)) {
-    try {
-      console.log(`Loading Firebase Admin from: ${jsonPath}`);
+  try {
+    let serviceAccount: any = null;
+    const cwd = process.cwd();
+    const jsonPath = path.join(cwd, 'firebase-service-account.json');
+
+    if (fs.existsSync(jsonPath)) {
+      console.log(`Attempting to load Firebase Admin from: ${jsonPath}`);
       serviceAccount = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-    } catch (e) {
-      console.error('Error reading service account JSON file:', e);
-    }
-  } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-    console.log('Loading Firebase Admin from Environment Variable...');
-    try {
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      console.log('Attempting to load Firebase Admin from Environment Variable...');
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-    } catch (e) {
-      console.error('Error parsing FIREBASE_SERVICE_ACCOUNT env var:', e);
-    }
-  }
-
-  if (serviceAccount && serviceAccount.project_id) {
-    // FIX: Ensure private key handles newlines correctly
-    if (serviceAccount.private_key) {
-      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
     }
 
-    try {
-      admin.initializeApp({
+    if (serviceAccount && serviceAccount.private_key) {
+      console.log('Sanitizing private key...');
+      
+      // AGGRESSIVE SANITIZATION:
+      // 1. Isolate the Base64 part by removing headers/footers
+      const header = '-----BEGIN PRIVATE KEY-----';
+      const footer = '-----END PRIVATE KEY-----';
+      
+      let pk = serviceAccount.private_key;
+      let base64Part = pk;
+      
+      if (pk.includes(header)) base64Part = base64Part.split(header)[1];
+      if (base64Part.includes(footer)) base64Part = base64Part.split(footer)[0];
+      
+      // 2. Remove EVERYTHING that isn't a valid Base64 character or the literal '\n' string
+      // This strips real newlines, spaces, tabs, and corruption like ASN.1 byte issues
+      base64Part = base64Part.replace(/\\n/g, ''); // Remove literal \n
+      base64Part = base64Part.replace(/[^A-Za-z0-9+/=]/g, ''); // Remove all whitespace/garbage
+      
+      // 3. Reconstruct with standard 64-character PEM line breaks
+      const lines = base64Part.match(/.{1,64}/g) || [];
+      serviceAccount.private_key = `${header}\n${lines.join('\n')}\n${footer}\n`;
+
+      return admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
         databaseURL: `https://${serviceAccount.project_id}-default-rtdb.asia-southeast1.firebasedatabase.app`
       });
-      console.log('Firebase Admin initialized successfully');
-    } catch (initError) {
-      console.error('Firebase Admin initialization error:', initError);
     }
-  } else {
-    console.error('Firebase Admin could not be initialized: No valid service account found');
+  } catch (error: any) {
+    console.error('❌ Firebase Admin initialization failed:', error.message);
   }
+  return null;
 }
 
-export const adminAuth = admin.auth();
-export const adminDb = admin.firestore();
-export const adminRealtime = admin.database();
+const app = initializeAdmin();
+
+export const adminAuth = app ? admin.auth(app) : null;
+export const adminDb = app ? admin.firestore(app) : null;
+export const adminRealtime = app ? admin.database(app) : null;
