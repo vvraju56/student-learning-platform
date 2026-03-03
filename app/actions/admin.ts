@@ -1,14 +1,66 @@
 "use server"
 
-import { auth, db, realtimeDb } from "@/lib/firebase"
-import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from "firebase/auth"
-import { signInWithEmailAndPassword } from "firebase/auth"
-import { doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, query, where } from "firebase/firestore"
-import { ref, set, get, remove } from "firebase/database"
+import { adminAuth, adminDb, adminRealtime } from "@/lib/firebase-admin"
 
-const ADMIN_EMAIL = "admin@123.in"
-const ADMIN_USERNAME = "Mega"
-const DEFAULT_PASSWORD = "student"
+export async function listAllUsersAdmin() {
+  try {
+    if (!adminAuth) throw new Error("Admin SDK not initialized")
+    
+    // 1. Get all users from Firebase Authentication
+    const listUsersResult = await adminAuth.listUsers()
+    const authUsers = listUsersResult.users
+
+    // 2. Get all profile data from Firestore to merge
+    const profilesSnapshot = await adminDb.collection("profiles").get()
+    const profilesMap = new Map()
+    profilesSnapshot.docs.forEach(doc => profilesMap.set(doc.id, doc.data()))
+
+    const usersRef = adminDb.collection("users")
+    const usersSnapshot = await usersRef.get()
+    const usersMap = new Map()
+    usersSnapshot.docs.forEach(doc => usersMap.set(doc.id, doc.data()))
+
+    // 3. Merge Auth users with Database data
+    const mergedUsers = await Promise.all(authUsers.map(async (authUser) => {
+      const profileData = profilesMap.get(authUser.uid) || {}
+      const userData = usersMap.get(authUser.uid) || {}
+      
+      // Skip the admin itself from the list
+      if (authUser.email === ADMIN_EMAIL) return null
+
+      // Get progress from Realtime DB
+      let progressData = {}
+      try {
+        const snap = await adminRealtime.ref(`users/${authUser.uid}/learning`).get()
+        if (snap.exists()) {
+          progressData = snap.val()
+        }
+      } catch (e) {}
+
+      return {
+        uid: authUser.uid,
+        email: authUser.email,
+        username: profileData.username || userData.username || "Unknown",
+        role: profileData.role || userData.role || "student",
+        createdAt: authUser.metadata.creationTime,
+        lastLogin: authUser.metadata.lastSignInTime,
+        deletionRequested: profileData.deletionRequested || false,
+        deletionRequestedAt: profileData.deletionRequestedAt || null,
+        progress: progressData
+      }
+    }))
+
+    // Filter out nulls (admin) and sort by creation date
+    const finalUsers = mergedUsers
+      .filter(u => u !== null)
+      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    return { success: true, users: finalUsers }
+  } catch (err: any) {
+    console.error("Error listing users:", err)
+    return { success: false, error: err.message }
+  }
+}
 
 export async function createAdminUser() {
   try {
