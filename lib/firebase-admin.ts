@@ -5,12 +5,16 @@ import * as path from 'path';
 if (!admin.apps.length) {
   let serviceAccount: any = null;
 
-  // Try from file first (local development)
-  const jsonPath = path.join(process.cwd(), 'student-learing-56-firebase-adminsdk-fbsvc-1f6245e4f7.json');
+  // Search for any JSON file that looks like a service account
+  const cwd = process.cwd();
+  const files = fs.readdirSync(cwd);
+  const jsonFile = files.find(f => f.endsWith('.json') && f.includes('firebase-adminsdk'));
+  
+  const jsonPath = jsonFile ? path.join(cwd, jsonFile) : path.join(cwd, 'firebase-service-account.json');
   
   if (fs.existsSync(jsonPath)) {
     try {
-      console.log('Loading Firebase Admin from JSON file...');
+      console.log(`Loading Firebase Admin from: ${jsonPath}`);
       serviceAccount = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
     } catch (e) {
       console.error('Error reading service account JSON file:', e);
@@ -25,13 +29,22 @@ if (!admin.apps.length) {
   }
 
   if (serviceAccount && serviceAccount.project_id) {
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      databaseURL: `https://${serviceAccount.project_id}-default-rtdb.asia-southeast1.firebasedatabase.app`
-    });
-    console.log('Firebase Admin initialized successfully');
+    // FIX: Ensure private key handles newlines correctly
+    if (serviceAccount.private_key) {
+      serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+    }
+
+    try {
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        databaseURL: `https://${serviceAccount.project_id}-default-rtdb.asia-southeast1.firebasedatabase.app`
+      });
+      console.log('Firebase Admin initialized successfully');
+    } catch (initError) {
+      console.error('Firebase Admin initialization error:', initError);
+    }
   } else {
-    console.error('Firebase Admin could not be initialized: No service account found');
+    console.error('Firebase Admin could not be initialized: No valid service account found');
   }
 }
 
