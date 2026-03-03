@@ -1,18 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, adminDb, adminRealtime } from '@/lib/firebase-admin';
+import { db, realtimeDb } from '@/lib/firebase';
+import { doc, deleteDoc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { ref, remove } from 'firebase/database';
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Check if Admin SDK initialized correctly
-    if (!adminAuth || !adminDb || !adminRealtime) {
-      return NextResponse.json({ 
-        error: "Firebase Admin SDK not initialized. Check server logs for ASN.1 or key errors." 
-      }, { status: 500 });
-    }
-
     const { userId, adminEmail } = await request.json();
 
-    // 2. Security check
     if (adminEmail !== "admin@123.in") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
@@ -21,30 +15,49 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID is required" }, { status: 400 });
     }
 
-    // 3. Delete from Firebase Authentication
-    try {
-      await adminAuth.deleteUser(userId);
-    } catch (authError: any) {
-      console.error('Auth deletion skip (might already be gone):', authError.message);
+    // Check if user exists
+    const userDoc = await getDoc(doc(db, "users", userId));
+    if (!userDoc.exists()) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 4. Delete Firestore records
-    await adminDb.collection('users').doc(userId).delete();
-    await adminDb.collection('profiles').doc(userId).delete();
+    const userData = userDoc.data();
+    if (userData.email === "admin@123.in") {
+      return NextResponse.json({ error: "Cannot delete admin user" }, { status: 400 });
+    }
 
-    // 5. Delete related collections
+    // Delete Firestore user document
+    await deleteDoc(doc(db, "users", userId));
+    
+    // Try to delete profiles collection
+    try {
+      await deleteDoc(doc(db, "profiles", userId));
+    } catch (e) {
+      console.log("No profiles doc to delete");
+    }
+
+    // Delete related collections
     const collections = ["video_progress", "quiz_attempts", "focus_analytics"];
     for (const colName of collections) {
-      const snapshot = await adminDb.collection(colName).where('user_id', '==', userId).get();
-      const batch = adminDb.batch();
-      snapshot.docs.forEach(doc => batch.delete(doc.ref));
-      await batch.commit();
+      try {
+        const q = query(collection(db, colName), where("user_id", "==", userId));
+        const snapshot = await getDocs(q);
+        for (const d of snapshot.docs) {
+          await deleteDoc(d.ref);
+        }
+      } catch (e) {
+        console.log(`No ${colName} to delete`);
+      }
     }
 
-    // 6. Delete from Realtime Database
-    await adminRealtime.ref(`users/${userId}`).remove();
+    // Delete from Realtime Database
+    try {
+      await remove(ref(realtimeDb, `users/${userId}`));
+    } catch (e) {
+      console.log("No Realtime DB data to delete");
+    }
 
-    return NextResponse.json({ success: true, message: "User completely removed" });
+    return NextResponse.json({ success: true, message: "User completely removed from database" });
   } catch (error: any) {
     console.error('Permanent delete API error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });

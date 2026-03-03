@@ -595,14 +595,7 @@ export default function AdminPage() {
                       onClick={() => handleViewDetails(user.uid)}
                       disabled={actionLoading === user.uid}
                     >
-                      Review
-                    </button>
-                    <button 
-                      className="action-btn btn-delete"
-                      onClick={() => handleDeleteUser(user.uid)}
-                      disabled={actionLoading === user.uid}
-                    >
-                      Approve & Delete
+                      Review Request
                     </button>
                   </div>
                 </div>
@@ -656,12 +649,6 @@ export default function AdminPage() {
                 onClick={() => handleResetPassword(selectedUser.uid)}
               >
                 Reset Password
-              </button>
-              <button 
-                className="action-btn btn-delete"
-                onClick={() => handleDeleteUser(selectedUser.uid)}
-              >
-                Delete User
               </button>
             </div>
           </div>

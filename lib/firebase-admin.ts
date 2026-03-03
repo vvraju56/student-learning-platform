@@ -16,28 +16,20 @@ function initializeAdmin() {
       serviceAccount = JSON.parse(fileContent);
     } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       console.log('Loading Firebase Admin from Environment Variable...');
-      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      let saJson = process.env.FIREBASE_SERVICE_ACCOUNT;
+      if (saJson.includes('\\n')) {
+        saJson = saJson.replace(/\\n/g, '\n');
+      }
+      serviceAccount = JSON.parse(saJson);
     }
 
     if (serviceAccount && serviceAccount.private_key) {
-      // Standard Firebase Admin fix for private key formatting
-      // 1. Replace literal "\n" strings with actual newline characters
-      // 2. Remove any \r (carriage returns) from Windows-style line endings
-      // 3. Ensure the key starts and ends cleanly
-      
       let key = serviceAccount.private_key;
-      
-      // Fix literal escaped newlines if they exist
       key = key.replace(/\\n/g, '\n');
-      
-      // Fix Windows line endings
       key = key.replace(/\r/g, '');
-      
-      serviceAccount.private_key = key.trim() + '\n';
+      serviceAccount.private_key = key;
 
-      // Diagnostic (Safe): Check if the key looks like a PEM key
-      const lines = serviceAccount.private_key.split('\n');
-      console.log(`Key diagnostic: ${lines.length} lines, starts with: ${lines[0].substring(0, 20)}...`);
+      console.log(`Key starts with: ${key.substring(0, 30)}...`);
 
       return admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
