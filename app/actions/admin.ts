@@ -3,22 +3,31 @@
 import { adminAuth, adminDb, adminRealtime } from "@/lib/firebase-admin"
 
 export async function listAllUsersAdmin() {
+  console.log("Admin Action: listAllUsersAdmin called");
   try {
-    if (!adminAuth) throw new Error("Admin SDK not initialized")
+    if (!adminAuth) {
+      console.error("Admin Action: adminAuth is null!");
+      throw new Error("Admin SDK not initialized")
+    }
     
+    console.log("Admin Action: Fetching users from Auth...");
     // 1. Get all users from Firebase Authentication
     const listUsersResult = await adminAuth.listUsers()
     const authUsers = listUsersResult.users
+    console.log(`Admin Action: Found ${authUsers.length} users in Auth`);
 
     // 2. Get all profile data from Firestore to merge
+    console.log("Admin Action: Fetching profiles from Firestore...");
     const profilesSnapshot = await adminDb.collection("profiles").get()
     const profilesMap = new Map()
     profilesSnapshot.docs.forEach(doc => profilesMap.set(doc.id, doc.data()))
+    console.log(`Admin Action: Found ${profilesMap.size} profiles`);
 
     const usersRef = adminDb.collection("users")
     const usersSnapshot = await usersRef.get()
     const usersMap = new Map()
     usersSnapshot.docs.forEach(doc => usersMap.set(doc.id, doc.data()))
+    console.log(`Admin Action: Found ${usersMap.size} user docs`);
 
     // 3. Merge Auth users with Database data
     const mergedUsers = await Promise.all(authUsers.map(async (authUser) => {
@@ -35,7 +44,9 @@ export async function listAllUsersAdmin() {
         if (snap.exists()) {
           progressData = snap.val()
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn(`Admin Action: No progress for ${authUser.uid}`);
+      }
 
       return {
         uid: authUser.uid,
@@ -55,9 +66,10 @@ export async function listAllUsersAdmin() {
       .filter(u => u !== null)
       .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
 
+    console.log(`Admin Action: Returning ${finalUsers.length} merged users`);
     return { success: true, users: finalUsers }
   } catch (err: any) {
-    console.error("Error listing users:", err)
+    console.error("Admin Action: Error listing users:", err.message);
     return { success: false, error: err.message }
   }
 }
