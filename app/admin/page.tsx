@@ -362,7 +362,6 @@ export default function AdminPage() {
             </div>
             <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
               <button className="action-btn btn-reset" onClick={() => handleResetPassword(selectedUser.uid)}>Reset Password</button>
-              <button className="action-btn btn-delete" onClick={() => handleDeleteUser(selectedUser.uid)}>Delete User</button>
             </div>
           </div>
         </div>
