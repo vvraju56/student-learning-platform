@@ -7,36 +7,26 @@ function initializeAdmin() {
 
   try {
     let serviceAccount: any = null;
-    
-    // 1. Try environment variable first (preferred for production)
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      console.log('Admin SDK: Loading from ENV...');
-      try {
-        serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      } catch (e) {
-        console.error('Admin SDK: ENV JSON parse failed');
-      }
-    }
+    const cwd = process.cwd();
+    const jsonPath = path.join(cwd, 'firebase-service-account.json');
 
-    // 2. Fallback to file (preferred for local dev)
-    if (!serviceAccount) {
-      const jsonPath = path.join(process.cwd(), 'firebase-service-account.json');
-      if (fs.existsSync(jsonPath)) {
-        console.log(`Admin SDK: Loading from file: ${jsonPath}`);
-        try {
-          serviceAccount = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
-        } catch (e) {
-          console.error('Admin SDK: File JSON parse failed');
-        }
-      }
+    if (fs.existsSync(jsonPath)) {
+      console.log(`Admin SDK: Loading from file: ${jsonPath}`);
+      serviceAccount = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      console.log('Admin SDK: Loading from Environment Variable...');
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     }
 
     if (serviceAccount && serviceAccount.private_key) {
-      // CLEAN PRIVATE KEY: Important for avoiding ASN.1 errors
-      // Replace literal \n with actual newlines if they are escaped as strings
-      if (typeof serviceAccount.private_key === 'string') {
-        serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
-      }
+      // PROVEN SANITIZATION LOGIC from diagnostic V3
+      let pureBase64 = serviceAccount.private_key
+        .replace('-----BEGIN PRIVATE KEY-----', '')
+        .replace('-----END PRIVATE KEY-----', '')
+        .replace(/\s/g, '');
+      
+      const wrapped = pureBase64.match(/.{1,64}/g).join('\n');
+      serviceAccount.private_key = `-----BEGIN PRIVATE KEY-----\n${wrapped}\n-----END PRIVATE KEY-----\n`;
 
       console.log('Admin SDK: Initializing with project:', serviceAccount.project_id);
       
@@ -45,7 +35,7 @@ function initializeAdmin() {
         databaseURL: `https://${serviceAccount.project_id}-default-rtdb.asia-southeast1.firebasedatabase.app`
       });
     } else {
-      console.error('❌ Admin SDK: No valid service account found in ENV or file');
+      console.error('❌ Admin SDK: No valid service account found');
     }
   } catch (error: any) {
     console.error('❌ Admin SDK: Initialization error:', error.message);
@@ -55,7 +45,6 @@ function initializeAdmin() {
 
 const app = initializeAdmin();
 
-// Export initialized services
 export const adminAuth = app ? admin.auth(app) : null;
 export const adminDb = app ? admin.firestore(app) : null;
 export const adminRealtime = app ? admin.database(app) : null;
