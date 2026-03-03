@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { auth } from "@/lib/firebase"
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { doc, getDoc, collection, query, where, getDocs, updateDoc } from "firebase/firestore"
 import { db } from "@/lib/firebase"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { User, Video, Award, TrendingUp, Calendar } from "lucide-react"
+import { User, Video, Award, TrendingUp, Calendar, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { onAuthStateChanged } from "firebase/auth"
 
@@ -43,6 +43,7 @@ export default function ProfilePage() {
   const [quizAttempts, setQuizAttempts] = useState<any[]>([])
   const [focusAnalytics, setFocusAnalytics] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [requestStatus, setRequestStatus] = useState("")
   const router = useRouter()
 
   useEffect(() => {
@@ -65,6 +66,25 @@ export default function ProfilePage() {
 
     return () => unsubscribe()
   }, [router])
+
+  const handleRequestDeletion = async () => {
+    if (!confirm("Are you sure you want to request account deletion? An admin will review your request.")) return
+    
+    setRequestStatus("sending")
+    try {
+      await updateDoc(doc(db, "profiles", user.uid), {
+        deletionRequested: true,
+        deletionRequestedAt: new Date().toISOString()
+      })
+      
+      // Update local state
+      setProfile({ ...profile, deletionRequested: true })
+      setRequestStatus("sent")
+    } catch (err) {
+      console.error(err)
+      setRequestStatus("error")
+    }
+  }
 
   const totalVideosWatched = videoProgress?.filter((v) => v.completed).length || 0
   const totalQuizzesPassed = quizAttempts?.filter((q) => q.passed).length || 0
@@ -99,6 +119,14 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+        {/* Deletion Request Status Banner */}
+        {profile?.deletionRequested && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 flex items-center gap-2">
+            <Trash2 className="h-5 w-5" />
+            <p><strong>Deletion Pending:</strong> You have requested to delete your account. An admin will review this shortly.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <Card className="lg:col-span-1">
             <CardHeader>
@@ -126,6 +154,20 @@ export default function ProfilePage() {
                   <Calendar className="h-5 w-5 text-orange-500" />
                 </div>
               </div>
+
+              {!profile?.deletionRequested && (
+                <div className="pt-4 border-t">
+                  <Button 
+                    variant="destructive" 
+                    className="w-full gap-2"
+                    onClick={handleRequestDeletion}
+                    disabled={requestStatus === "sending"}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {requestStatus === "sending" ? "Sending Request..." : "Request Account Deletion"}
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
 

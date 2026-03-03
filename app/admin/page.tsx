@@ -27,7 +27,9 @@ async function fetchAllUsersClient() {
         username: data.username,
         role: data.role || "student",
         createdAt: data.created_at || new Date().toISOString(),
-        deleted: data.deleted || false
+        deleted: data.deleted || false,
+        deletionRequested: data.deletionRequested || false,
+        deletionRequestedAt: data.deletionRequestedAt
       }
     })
 
@@ -95,13 +97,42 @@ async function fetchDeletedUsersClient() {
   }
 }
 
+interface User {
+  uid: string
+  email: string
+  username: string
+  role: string
+  createdAt: string
+  deleted: boolean
+  deletedAt: number | null
+  restoreBefore: number | null
+  progress?: any
+  deletionRequested?: boolean
+  deletionRequestedAt?: string
+}
+
+interface UserDetails {
+  uid: string
+  email: string
+  username: string
+  role: string
+  createdAt: string
+  progress?: any
+  overall?: any
+  quizAttempts?: any[]
+  focusAnalytics?: any[]
+  deletionRequested?: boolean
+  deletionRequestedAt?: string
+  [key: string]: any
+}
+
 export default function AdminPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<User[]>([])
   const [deletedUsers, setDeletedUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null)
-  const [activeTab, setActiveTab] = useState<"users" | "deleted">("users")
+  const [activeTab, setActiveTab] = useState<"users" | "deleted" | "requests">("users")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null)
   const router = useRouter()
@@ -166,7 +197,9 @@ export default function AdminPage() {
             email: pData.email,
             username: pData.username,
             role: pData.role || "student",
-            createdAt: pData.created_at
+            createdAt: pData.created_at,
+            deletionRequested: pData.deletionRequested,
+            deletionRequestedAt: pData.deletionRequestedAt
           }
         }
       }
@@ -336,6 +369,8 @@ export default function AdminPage() {
     const total = courses.reduce((sum: number, c: any) => sum + (c.progress || 0), 0)
     return Math.round(total / courses.length)
   }
+
+  const requests = users.filter(u => u.deletionRequested)
 
   if (loading) {
     return (
@@ -576,6 +611,11 @@ export default function AdminPage() {
           background: rgba(239, 68, 68, 0.2);
           color: #ef4444;
         }
+        .badge-request {
+          background: rgba(234, 179, 8, 0.2);
+          color: #eab308;
+          border: 1px solid #eab308;
+        }
       `}</style>
 
       {/* Header */}
@@ -600,6 +640,12 @@ export default function AdminPage() {
           Active Users ({users.length})
         </button>
         <button 
+          className={`tab-btn ${activeTab === "requests" ? "active" : ""}`}
+          onClick={() => setActiveTab("requests")}
+        >
+          Requests ({requests.length})
+        </button>
+        <button 
           className={`tab-btn ${activeTab === "deleted" ? "active" : ""}`}
           onClick={() => setActiveTab("deleted")}
         >
@@ -621,7 +667,7 @@ export default function AdminPage() {
                   <div className="user-details">
                     <h3>
                       {user.username}
-                      {user.deleted && <span className="badge badge-deleted">Deleted</span>}
+                      {user.deletionRequested && <span className="badge badge-request">Deletion Requested</span>}
                     </h3>
                     <p>{user.email}</p>
                     <p>Joined: {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "N/A"}</p>
@@ -643,19 +689,47 @@ export default function AdminPage() {
                     >
                       View Details
                     </button>
+                    {/* Removed quick Delete button */}
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Deletion Requests */}
+      {activeTab === "requests" && (
+        <div>
+          {requests.length === 0 ? (
+            <div className="empty-state">
+              <p>No deletion requests</p>
+            </div>
+          ) : (
+            requests.map((user) => (
+              <div key={user.uid} className="user-card" style={{ borderColor: "#eab308" }}>
+                <div className="user-info">
+                  <div className="user-details">
+                    <h3>{user.username}</h3>
+                    <p>{user.email}</p>
+                    <p style={{ color: "#eab308" }}>
+                      Requested: {user.deletionRequestedAt ? new Date(user.deletionRequestedAt).toLocaleDateString() : "Unknown"}
+                    </p>
+                  </div>
+                  <div>
                     <button 
-                      className="action-btn btn-reset"
-                      onClick={() => handleResetPassword(user.uid)}
+                      className="action-btn btn-view"
+                      onClick={() => handleViewDetails(user.uid)}
                       disabled={actionLoading === user.uid}
                     >
-                      Reset Password
+                      Review
                     </button>
                     <button 
-                      className="action-btn btn-delete"
-                      onClick={() => handleDeleteUser(user.uid)}
+                      className="action-btn btn-permanent"
+                      onClick={() => handlePermanentDelete(user.uid)}
                       disabled={actionLoading === user.uid}
                     >
-                      Delete
+                      Approve & Delete
                     </button>
                   </div>
                 </div>
@@ -712,7 +786,10 @@ export default function AdminPage() {
         <div className="modal-overlay" onClick={() => setSelectedUser(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2 className="modal-title">User Details</h2>
+              <h2 className="modal-title">
+                User Details
+                {selectedUser.deletionRequested && <span className="badge badge-request" style={{marginLeft: '10px'}}>Deletion Requested</span>}
+              </h2>
               <button className="close-btn" onClick={() => setSelectedUser(null)}>×</button>
             </div>
 
@@ -826,7 +903,13 @@ export default function AdminPage() {
                 className="action-btn btn-delete"
                 onClick={() => handleDeleteUser(selectedUser.uid)}
               >
-                Delete User
+                Soft Delete
+              </button>
+              <button 
+                className="action-btn btn-permanent"
+                onClick={() => handlePermanentDelete(selectedUser.uid)}
+              >
+                Permanent Delete
               </button>
             </div>
           </div>
