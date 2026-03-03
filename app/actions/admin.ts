@@ -51,6 +51,26 @@ export async function listAllUsersAdmin() {
         const snap = await adminRealtime.ref(`users/${authUser.uid}/learning`).get()
         if (snap.exists()) {
           progressData = snap.val()
+        } else {
+          // FALLBACK: If no Realtime DB data, calculate from Firestore video_progress
+          console.log(`Admin Action: Fallback to Firestore for ${authUser.uid}`);
+          const firestoreProgress = await adminDb.collection("video_progress")
+            .where("user_id", "==", authUser.uid)
+            .get();
+          
+          if (!firestoreProgress.empty) {
+            const completedCount = firestoreProgress.docs.filter(d => d.data().completed).length;
+            // Approximate progress: each course has 10 videos, total 30
+            const totalVideos = 30; 
+            const calcOverall = Math.min(100, Math.round((completedCount / totalVideos) * 100));
+            
+            progressData = {
+              overallProgress: calcOverall,
+              completedVideos: completedCount,
+              totalVideos: totalVideos,
+              isFirestoreFallback: true
+            };
+          }
         }
       } catch (e) {
         console.warn(`Admin Action: No progress for ${authUser.uid}`);
