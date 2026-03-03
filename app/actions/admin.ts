@@ -59,16 +59,28 @@ export async function listAllUsersAdmin() {
             .get();
           
           if (!firestoreProgress.empty) {
-            const completedCount = firestoreProgress.docs.filter(d => d.data().completed).length;
-            // Approximate progress: each course has 10 videos, total 30
+            // Use a Set to count unique completed videos (courseId + videoId)
+            const completedVideos = new Set();
+            firestoreProgress.docs.forEach(d => {
+              const data = d.data();
+              if (data.completed && data.course_id && data.video_id) {
+                completedVideos.add(`${data.course_id}:${data.video_id}`);
+              }
+            });
+
+            const completedCount = completedVideos.size;
+            // The platform has 3 courses with 10 videos each = 30 total
             const totalVideos = 30; 
             const calcOverall = Math.min(100, Math.round((completedCount / totalVideos) * 100));
+            
+            console.log(`Admin Action: Accurate fallback for ${authUser.uid} - Unique videos: ${completedCount}`);
             
             progressData = {
               overallProgress: calcOverall,
               completedVideos: completedCount,
               totalVideos: totalVideos,
-              isFirestoreFallback: true
+              isFirestoreFallback: true,
+              lastUpdated: new Date().toISOString()
             };
           }
         }
