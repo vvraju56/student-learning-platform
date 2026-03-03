@@ -213,10 +213,23 @@ export default function AdminPage() {
 
   const calculateProgress = (progress: any) => {
     if (!progress) return 0
-    const courses = Object.values(progress) as any[]
+    
+    // If overallProgress is directly available as a number
+    if (typeof progress.overallProgress === 'number') {
+      return Math.round(progress.overallProgress)
+    }
+    
+    // Fallback: calculate from courses if available
+    const coursesObj = progress.courses || progress
+    const courses = Object.values(coursesObj) as any[]
     if (courses.length === 0) return 0
-    const total = courses.reduce((sum: number, c: any) => sum + (c.progress || 0), 0)
-    return Math.round(total / courses.length)
+    
+    // Only count objects that look like course data (have progress property)
+    const validCourses = courses.filter(c => c && typeof c.progress === 'number')
+    if (validCourses.length === 0) return 0
+    
+    const total = validCourses.reduce((sum: number, c: any) => sum + (c.progress || 0), 0)
+    return Math.round(total / validCourses.length)
   }
 
   const requests = users.filter(u => u.deletionRequested)
@@ -358,6 +371,27 @@ export default function AdminPage() {
                     <div className="detail-value">{data.progress || 0}% <span style={{ color: "#888", fontSize: "12px", marginLeft: "10px" }}>({data.completedVideos || 0}/{data.totalVideos || 0} videos)</span></div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            {/* Overall Progress Section */}
+            <div className="detail-section">
+              <h4>Overall Progress</h4>
+              <div className="detail-grid">
+                <div className="detail-item">
+                  <div className="detail-label">Total Progress</div>
+                  <div className="detail-value">
+                    {typeof selectedUser.overall === 'number' 
+                      ? `${Math.round(selectedUser.overall)}%` 
+                      : `${selectedUser.overall?.overallProgress || 0}%`}
+                  </div>
+                </div>
+                <div className="detail-item">
+                  <div className="detail-label">Completed Videos</div>
+                  <div className="detail-value">
+                    {typeof selectedUser.overall === 'object' ? selectedUser.overall?.completedVideos || 0 : 'N/A'}
+                  </div>
+                </div>
               </div>
             </div>
             <div style={{ marginTop: "20px", display: "flex", gap: "10px" }}>
