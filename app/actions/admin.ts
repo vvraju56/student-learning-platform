@@ -1,6 +1,14 @@
 "use server"
 
 import { adminAuth, adminDb, adminRealtime } from "@/lib/firebase-admin"
+import { auth, db, realtimeDb } from "@/lib/firebase"
+import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from "firebase/auth"
+import { doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, query, where } from "firebase/firestore"
+import { ref, get, remove } from "firebase/database"
+
+const ADMIN_EMAIL = "admin@123.in"
+const ADMIN_USERNAME = "Mega"
+const DEFAULT_PASSWORD = "student"
 
 export async function listAllUsersAdmin() {
   console.log("Admin Action: listAllUsersAdmin called");
