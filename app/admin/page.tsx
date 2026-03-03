@@ -124,6 +124,39 @@ export default function AdminPage() {
           const data = snap.val()
           progressData = data.courses || {}
           overallData = data.overallProgress || {}
+        } else {
+          // FALLBACK: Fetch from Firestore if Realtime DB is empty
+          const firestoreProgress = await getDocs(query(collection(db, "video_progress"), where("user_id", "==", userId)))
+          if (!firestoreProgress.empty) {
+            const courseStats: any = {}
+            const uniqueCompleted = new Set()
+            
+            firestoreProgress.docs.forEach(d => {
+              const data = d.data()
+              const cid = data.course_id
+              if (!courseStats[cid]) courseStats[cid] = { progress: 0, completedVideos: 0, totalVideos: 10 }
+              
+              if (data.completed) {
+                const videoKey = `${cid}:${data.video_id}`
+                if (!uniqueCompleted.has(videoKey)) {
+                  uniqueCompleted.add(videoKey)
+                  courseStats[cid].completedVideos++
+                }
+              }
+            })
+
+            // Calculate percentages
+            Object.keys(courseStats).forEach(cid => {
+              courseStats[cid].progress = Math.round((courseStats[cid].completedVideos / courseStats[cid].totalVideos) * 100)
+            })
+
+            progressData = courseStats
+            overallData = {
+              overallProgress: Math.min(100, Math.round((uniqueCompleted.size / 30) * 100)),
+              completedVideos: uniqueCompleted.size,
+              totalVideos: 30
+            }
+          }
         }
       } catch (e) {}
 
