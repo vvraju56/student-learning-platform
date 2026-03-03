@@ -254,6 +254,24 @@ export default function AdminPage() {
     setActionLoading(null)
   }
 
+  const handleClearRequest = async (userId: string) => {
+    if (!confirm("Clear this deletion request? The user will remain active.")) return
+    
+    setActionLoading(userId)
+    try {
+      await updateDoc(doc(db, "profiles", userId), {
+        deletionRequested: false,
+        deletionRequestedAt: null
+      })
+      
+      setMessage({ type: "success", text: "Deletion request cleared" })
+      await loadUsers()
+    } catch (err: any) {
+      setMessage({ type: "error", text: "Error clearing request: " + err.message })
+    }
+    setActionLoading(null)
+  }
+
   const calculateProgress = (progress: any) => {
     if (!progress) return 0
     const courses = Object.values(progress) as any[]
@@ -512,19 +530,34 @@ export default function AdminPage() {
       )}
 
       {/* Tabs */}
-      <div className="tab-buttons">
-        <button 
-          className={`tab-btn ${activeTab === "users" ? "active" : ""}`}
-          onClick={() => setActiveTab("users")}
-        >
-          Active Users ({users.length})
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === "requests" ? "active" : ""}`}
-          onClick={() => setActiveTab("requests")}
-        >
-          Requests ({requests.length})
-        </button>
+      <div className="tab-buttons" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button 
+            className={`tab-btn ${activeTab === "users" ? "active" : ""}`}
+            onClick={() => setActiveTab("users")}
+          >
+            Active Users ({users.length})
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === "requests" ? "active" : ""}`}
+            onClick={() => setActiveTab("requests")}
+          >
+            Requests ({requests.length})
+          </button>
+        </div>
+        
+        {activeTab === "users" && (
+          <button 
+            className="action-btn btn-view" 
+            onClick={() => {
+              setLoading(true);
+              loadUsers().then(() => setLoading(false));
+            }}
+            style={{ margin: 0 }}
+          >
+            Refresh List
+          </button>
+        )}
       </div>
 
       {/* Users List */}
@@ -596,6 +629,14 @@ export default function AdminPage() {
                       disabled={actionLoading === user.uid}
                     >
                       Review Request
+                    </button>
+                    <button 
+                      className="action-btn btn-reset"
+                      onClick={() => handleClearRequest(user.uid)}
+                      disabled={actionLoading === user.uid}
+                      style={{ background: '#22c55e', color: '#fff' }}
+                    >
+                      Done
                     </button>
                   </div>
                 </div>
