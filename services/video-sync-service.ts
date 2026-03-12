@@ -1,7 +1,7 @@
 "use client"
 
 import { realtimeDb } from "@/lib/firebase"
-import { ref, update, set, get } from "firebase/database"
+import { ref, update, get } from "firebase/database"
 
 export interface VideoSyncData {
   courseId: string
@@ -140,7 +140,7 @@ export class VideoSyncService {
   ): Promise<void> {
     if (!realtimeDb) throw new Error('Firebase not initialized')
 
-    const videoPath = `users/${userId}/videos/${videoKey}`
+    const videoPath = `users/${userId}/learning/videos/${videoKey}`
     const videoRef = ref(realtimeDb, videoPath)
 
     // Minimize data being sent - only essential fields
@@ -252,9 +252,10 @@ export class VideoSyncService {
     progress: number
   } | null> {
     if (!realtimeDb) return null
+    if (!userId?.trim()) return null
 
     try {
-      const courseRef = ref(realtimeDb, `users/${userId}/courses/${courseId}`)
+      const courseRef = ref(realtimeDb, `users/${userId}/learning/courses/${courseId}`)
       const snapshot = await get(courseRef)
 
       if (!snapshot.exists()) {
@@ -268,7 +269,12 @@ export class VideoSyncService {
         completedVideos: data.completedVideos || 0,
         progress: data.progress || 0
       }
-    } catch (error) {
+    } catch (error: any) {
+      const msg = String(error?.message || "").toLowerCase()
+      if (msg.includes("permission")) {
+        console.warn(`Realtime DB read denied for course ${courseId}. Falling back to local data.`)
+        return null
+      }
       console.error(`Error reading course progress for ${courseId}:`, error)
       return null
     }
@@ -284,9 +290,10 @@ export class VideoSyncService {
     progress: number
   }>> {
     if (!realtimeDb) return []
+    if (!userId?.trim()) return []
 
     try {
-      const coursesRef = ref(realtimeDb, `users/${userId}/courses`)
+      const coursesRef = ref(realtimeDb, `users/${userId}/learning/courses`)
       const snapshot = await get(coursesRef)
 
       if (!snapshot.exists()) {
@@ -300,7 +307,12 @@ export class VideoSyncService {
         completedVideos: courseData.completedVideos || 0,
         progress: courseData.progress || 0
       }))
-    } catch (error) {
+    } catch (error: any) {
+      const msg = String(error?.message || "").toLowerCase()
+      if (msg.includes("permission")) {
+        console.warn("Realtime DB read denied for course progress. Falling back to local data.")
+        return []
+      }
       console.error(`Error reading all courses progress:`, error)
       return []
     }
@@ -311,9 +323,10 @@ export class VideoSyncService {
    */
   async getOverallProgress(userId: string): Promise<number> {
     if (!realtimeDb) return 0
+    if (!userId?.trim()) return 0
 
     try {
-      const overallRef = ref(realtimeDb, `users/${userId}/overall`)
+      const overallRef = ref(realtimeDb, `users/${userId}/learning/overallProgress`)
       const snapshot = await get(overallRef)
 
       if (!snapshot.exists()) {
@@ -321,8 +334,14 @@ export class VideoSyncService {
       }
 
       const data = snapshot.val()
-      return data.progress || 0
-    } catch (error) {
+      if (typeof data === "number") return data
+      return data?.progress || data?.overallProgress || 0
+    } catch (error: any) {
+      const msg = String(error?.message || "").toLowerCase()
+      if (msg.includes("permission")) {
+        console.warn("Realtime DB read denied for overall progress. Falling back to defaults.")
+        return 0
+      }
       console.error(`Error reading overall progress:`, error)
       return 0
     }
@@ -330,3 +349,7 @@ export class VideoSyncService {
 }
 
 export const videoSyncService = new VideoSyncService()
+
+
+
+

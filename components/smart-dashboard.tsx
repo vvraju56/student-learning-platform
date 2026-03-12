@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import Button from "react-bootstrap/Button"
 import Card from "react-bootstrap/Card"
@@ -60,7 +60,10 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
   const [isLoading, setIsLoading] = useState(true)
   
   // Firebase manager for progress tracking
-  const firebaseManager = new FirebaseProgressManager(user?.uid || "demo")
+  const firebaseManager = useMemo(() => {
+    if (!user?.uid) return null
+    return new FirebaseProgressManager(user.uid)
+  }, [user?.uid])
 
   const isFirstLoad = useRef(true)
   
@@ -72,11 +75,16 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
         isFirstLoad.current = false
       }
       try {
+        if (!user?.uid) {
+          setIsLoading(false)
+          return
+        }
+
         // Try loading from new videoSyncService (Firebase)
         let coursesProgressData: any = {}
         
         try {
-          const allCoursesProgress = await videoSyncService.getAllCoursesProgress(user?.uid || "")
+          const allCoursesProgress = await videoSyncService.getAllCoursesProgress(user.uid)
           
           // Convert to the format needed
           allCoursesProgress.forEach((courseData: any) => {
@@ -87,7 +95,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
         }
         
         // Fallback to old Firebase manager if needed
-        if (Object.keys(coursesProgressData).length === 0) {
+        if (Object.keys(coursesProgressData).length === 0 && firebaseManager) {
           const userProgress = await Promise.race([
             firebaseManager.getUserProgress(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
@@ -212,7 +220,7 @@ function SmartDashboardContent({ user, profile, handleLogout }: SmartDashboardPr
       clearInterval(interval); // Clear initial interval on unmount
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     }
-  }, [firebaseManager])
+  }, [firebaseManager, user?.uid])
 
   // Real-time dashboard behavior effects
   useEffect(() => {

@@ -5,7 +5,8 @@
   "scripts": {
     "build": "next build",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
     "dev": "next dev",
     "test": "jest",
     "test:watch": "jest --watch",

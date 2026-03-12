@@ -5,14 +5,14 @@ import { useRouter, useParams } from "next/navigation"
 import { courses } from "@/lib/courses-data"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { 
-  Monitor, Camera, Clock, CheckCircle, AlertCircle, 
-  Eye, Maximize2, Minimize2, Play, Pause, X
+import {
+  Monitor, Camera, Clock, CheckCircle, AlertCircle,
+  Eye, Play, X, Wifi, Activity, BellRing
 } from "lucide-react"
 import { useRealtimeFaceDetection } from "@/hooks/use-realtime-face-detection"
-import { auth } from "@/lib/firebase"
-import { saveVideoProgressToFirestore } from "@/lib/firebase"
+import { auth, saveAlertToFirebase, saveVideoProgressToFirestore } from "@/lib/firebase"
 import { ProgressStorage } from "@/lib/progress-storage"
+import { useHardwareMonitoring } from "@/hooks/use-hardware-monitoring"
 
 export default function LecturePage() {
   const params = useParams()
@@ -141,6 +141,27 @@ export default function LecturePage() {
   const videoRef = useRef<HTMLIFrameElement>(null)
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastAlertReasonRef = useRef<string>("")
+
+  const {
+    hardwareStatus,
+    isOnline: hardwareOnline,
+    isMotionDetected,
+    motionDuration,
+    motionViolation,
+    isMotionSensorStale,
+    connectionAgeMs,
+    hardwareError,
+    triggerAlert: triggerHardwareAlert,
+    clearAlert: clearHardwareAlert
+  } = useHardwareMonitoring({
+    userId: userId || "",
+    motionThresholdMs: 5000,
+    heartbeatTimeoutMs: 7000,
+    sensorTimeoutMs: 15000
+  })
+
+  const motionSeconds = Math.floor(motionDuration / 1000)
 
   // Load course data
   useEffect(() => {
@@ -231,15 +252,86 @@ export default function LecturePage() {
   const showBlockedOverlay = courseBlocked && faceDetectionError && faceDetectionError.includes("denied")
 
   // MASTER ENFORCEMENT FLAG - Source of Truth
-  // Allow 3 second grace period when face not detected before pausing
   const isFaceReallyMissing = isFaceDetected === false && faceNotDetectedCountdown === 0
-  const canCountSession = 
-    monitoringActive && 
-    cameraActive && 
-    !isFaceReallyMissing && 
-    tabVisible && 
+  const hardwareReady = hardwareOnline && !motionViolation && !isMotionSensorStale
+  const canCountSession =
+    monitoringActive &&
+    cameraActive &&
+    !isFaceReallyMissing &&
+    tabVisible &&
+    hardwareReady &&
     videoPlaying &&
     !timeLimitReached
+
+  const pushHardwareAlert = useCallback(async (reason: string, options?: { led?: boolean; buzzer?: boolean }) => {
+    if (!userId || !monitoringActive) return
+    if (lastAlertReasonRef.current === reason) return
+
+    lastAlertReasonRef.current = reason
+
+    const reasonMessageMap: Record<string, string> = {
+      offline: "ESP32 connection lost. Monitoring paused.",
+      sensor_stale: "Motion sensor data is stale.",
+      excessive_movement: "Excessive movement detected for 5+ seconds.",
+      tab_switch: "Tab switch detected during monitored lecture.",
+      face_lost: "Face missing for 5+ seconds during monitored lecture."
+    }
+
+    try {
+      await triggerHardwareAlert(reason, options)
+      await saveAlertToFirebase(userId, {
+        type: `hardware_${reason}`,
+        message: reasonMessageMap[reason] || reason,
+        courseId,
+        videoId: `video-${currentVideoIndex}`
+      })
+    } catch (error) {
+      console.error("Failed to push hardware alert:", error)
+    }
+  }, [userId, monitoringActive, triggerHardwareAlert, courseId, currentVideoIndex])
+
+  useEffect(() => {
+    if (!monitoringActive) return
+
+    if (!hardwareOnline) {
+      void pushHardwareAlert("offline", { led: true, buzzer: true })
+      return
+    }
+
+    if (isMotionSensorStale) {
+      void pushHardwareAlert("sensor_stale", { led: true, buzzer: false })
+      return
+    }
+
+    if (motionViolation) {
+      void pushHardwareAlert("excessive_movement", { led: true, buzzer: true })
+      return
+    }
+
+    if (!tabVisible) {
+      void pushHardwareAlert("tab_switch", { led: false, buzzer: true })
+      return
+    }
+
+    if (isFaceReallyMissing) {
+      void pushHardwareAlert("face_lost", { led: true, buzzer: true })
+      return
+    }
+
+    if (lastAlertReasonRef.current) {
+      lastAlertReasonRef.current = ""
+      void clearHardwareAlert()
+    }
+  }, [
+    monitoringActive,
+    hardwareOnline,
+    isMotionSensorStale,
+    motionViolation,
+    tabVisible,
+    isFaceReallyMissing,
+    pushHardwareAlert,
+    clearHardwareAlert
+  ])
 
   // SESSION TIMER - Only increments when ALL conditions are met
   useEffect(() => {
@@ -304,7 +396,9 @@ export default function LecturePage() {
     console.log("🚀 START MONITORING clicked")
     setMonitoringActive(true)
     setCourseBlocked(false)
-    
+    lastAlertReasonRef.current = ""
+    void clearHardwareAlert()
+
     await startWebcam()
     console.log("✅ startWebcam completed")
   }
@@ -314,7 +408,9 @@ export default function LecturePage() {
     console.log("🛑 STOP MONITORING")
     setMonitoringActive(false)
     stopWebcam()
-    
+    lastAlertReasonRef.current = ""
+    void clearHardwareAlert()
+
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current)
       timerIntervalRef.current = null
@@ -330,7 +426,9 @@ export default function LecturePage() {
           '{"event":"command","func":"pauseVideo","args":""}', 
           '*'
         )
-      } catch (e) {}
+      } catch {
+        // Ignore postMessage failures for non-YouTube embeds.
+      }
     }
     // Local video
     if (localVideoRef.current) {
@@ -347,7 +445,9 @@ export default function LecturePage() {
           '{"event":"command","func":"playVideo","args":""}', 
           '*'
         )
-      } catch (e) {}
+      } catch {
+        // Ignore postMessage failures for non-YouTube embeds.
+      }
     }
     // Local video
     if (localVideoRef.current) {
@@ -365,6 +465,9 @@ export default function LecturePage() {
   const getAttentionStatus = () => {
     if (!monitoringActive) return "Monitoring not started"
     if (!cameraActive) return "Camera not active"
+    if (!hardwareOnline) return "ESP32 offline - Timer paused"
+    if (isMotionSensorStale) return "Motion sensor not responding - Timer paused"
+    if (motionViolation) return "Excessive movement (5s) - Timer paused"
     if (!isFaceDetected && faceNotDetectedCountdown !== null) return `Face not detected - Learning pauses in ${faceNotDetectedCountdown}s`
     if (!isFaceDetected) return "Face not detected - Timer paused"
     if (!tabVisible) return "Tab switched - Timer paused"
@@ -413,6 +516,12 @@ export default function LecturePage() {
             </div>
             <Badge variant={monitoringActive ? "default" : "secondary"}>
               {monitoringActive ? "Face Monitoring Active" : "Monitoring Off"}
+            </Badge>
+            <Badge
+              variant={hardwareOnline ? "default" : "destructive"}
+              className={hardwareOnline ? "bg-emerald-600 hover:bg-emerald-600" : "bg-red-600 hover:bg-red-600"}
+            >
+              ESP32 {hardwareOnline ? "Online" : "Offline"}
             </Badge>
           </div>
         </div>
@@ -490,7 +599,7 @@ export default function LecturePage() {
                   <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
                   <p className="text-xl mb-2">Learning Paused</p>
                   <p className="text-gray-400 mb-4">{getAttentionStatus()}</p>
-                  {isFaceDetected && tabVisible && !videoPlaying && (
+                  {isFaceDetected && tabVisible && hardwareReady && !videoPlaying && (
                     <Button onClick={playVideo}>
                       <Play className="mr-2 h-4 w-4" />
                       Resume Learning
@@ -632,7 +741,6 @@ export default function LecturePage() {
                 {cameraActive ? (isFaceDetected ? 'Face Detected' : faceNotDetectedCountdown !== null ? `Pausing in ${faceNotDetectedCountdown}s...` : 'No Face') : 'Camera Inactive'}
               </p>
             </div>
-
             {/* Tab Visibility Status */}
             <div className={`p-3 rounded-lg border ${tabVisible ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
               <div className="flex items-center gap-2">
@@ -640,6 +748,36 @@ export default function LecturePage() {
                 <span className="font-medium text-sm">Tab Status</span>
               </div>
               <p className="text-xs text-gray-600 mt-1">{tabVisible ? 'Focused on learning' : 'Tab switched!'}</p>
+            </div>
+
+            {/* Hardware Status */}
+            <div className={`p-3 rounded-lg border ${hardwareReady ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+              <div className="flex items-center gap-2">
+                <Wifi className={`h-4 w-4 ${hardwareOnline ? 'text-green-600' : 'text-red-600'}`} />
+                <span className="font-medium text-sm">ESP32 Hardware</span>
+                <span className={`ml-auto text-xs font-semibold ${hardwareOnline ? 'text-green-700' : 'text-red-700'}`}>
+                  {hardwareOnline ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              <div className="mt-2 flex items-center gap-2 text-xs text-gray-600">
+                <Activity className={`h-3 w-3 ${isMotionDetected ? 'text-blue-600' : 'text-gray-400'}`} />
+                <span>{isMotionDetected ? `Motion active ${motionSeconds}s / 5s` : 'No motion detected'}</span>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Last heartbeat: {Number.isFinite(connectionAgeMs) ? `${Math.round(connectionAgeMs / 1000)}s ago` : 'N/A'}
+              </p>
+              {motionViolation && (
+                <p className="text-xs text-red-600 mt-1">Violation: movement exceeded 5 seconds.</p>
+              )}
+              {hardwareError && (
+                <p className="text-xs text-red-600 mt-1">{hardwareError}</p>
+              )}
+              {hardwareStatus?.alert?.reason && hardwareStatus.alert.reason !== 'ok' && (
+                <p className="text-xs text-amber-700 mt-1 flex items-center gap-1">
+                  <BellRing className="h-3 w-3" />
+                  Alert: {hardwareStatus.alert.reason}
+                </p>
+              )}
             </div>
 
             {/* Session Time */}
@@ -652,7 +790,7 @@ export default function LecturePage() {
                 {Math.floor(sessionTime / 60)}:{(sessionTime % 60).toString().padStart(2, '0')} / 30:00
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Only counts when: Camera ON + Face Detected + Tab Visible + Video Playing
+                Only counts when: Camera ON + Face Detected + Tab Visible + ESP32 Online + No Motion Violation + Video Playing
               </p>
             </div>
 
@@ -672,3 +810,4 @@ export default function LecturePage() {
     </div>
   )
 }
+

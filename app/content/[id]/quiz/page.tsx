@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState, useMemo } from "react"
+import { useEffect, useRef, useState, useMemo, useCallback } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import * as tf from "@tensorflow/tfjs"
 import * as blazeface from "@tensorflow-models/blazeface"
-import { auth } from "@/lib/firebase"
-import { saveQuizAttemptToFirestore } from "@/lib/firebase"
+import { auth, saveAlertToFirebase, saveQuizAttemptToFirestore } from "@/lib/firebase"
+import { useHardwareMonitoring } from "@/hooks/use-hardware-monitoring"
 
 type QuizState = "ready" | "mcq" | "coding" | "submitted"
 
@@ -84,13 +84,6 @@ const styles: any = {
   warning: { display: "flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 20, background: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid #ef4444" },
 }
 
-const mobileStyles = {
-  header: { flexDirection: "column" as const, alignItems: "stretch", gap: 10 },
-  layout: { gridTemplateColumns: "1fr" as const },
-  sidebar: { borderRight: "none", borderBottom: "1px solid #1f2937" },
-  questionGrid: { gridTemplateColumns: "repeat(3, 1fr)" as const },
-}
-
 export default function QuizPage() {
   const params = useParams()
   const courseId = (params?.id as string) || "web-development"
@@ -98,7 +91,6 @@ export default function QuizPage() {
   
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
   const isMobile = useMemo(() => windowWidth < 768, [windowWidth])
-  const isTablet = useMemo(() => windowWidth >= 768 && windowWidth < 1024, [windowWidth])
   
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth)
@@ -119,6 +111,8 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [codingAnswers, setCodingAnswers] = useState<Record<number, string>>({})
   const [canStartQuiz, setCanStartQuiz] = useState(false)
+  const [userId, setUserId] = useState<string | null>(null)
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const detectIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -127,6 +121,43 @@ export default function QuizPage() {
   const countdownRef = useRef<NodeJS.Timeout | null>(null)
   const tfModelRef = useRef<blazeface.BlazeFaceModel | null>(null)
   const consecutiveNoFaceRef = useRef(0)
+  const lastHardwareAlertReasonRef = useRef<string>("")
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setUserId(user?.uid || null)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  const {
+    hardwareStatus,
+    isOnline: hardwareOnline,
+    isMotionDetected,
+    motionDuration,
+    motionViolation,
+    isMotionSensorStale,
+    connectionAgeMs,
+    triggerAlert: triggerHardwareAlert,
+    clearAlert: clearHardwareAlert
+  } = useHardwareMonitoring({
+    userId: userId || "",
+    motionThresholdMs: 5000,
+    heartbeatTimeoutMs: 7000,
+    sensorTimeoutMs: 15000
+  })
+
+  const motionSeconds = Math.floor(motionDuration / 1000)
+  const hardwareReady = hardwareOnline && !motionViolation && !isMotionSensorStale
+  const isQuizRunning = quizState === "mcq" || quizState === "coding"
+  const hardwareBlockReason = !hardwareOnline
+    ? "ESP32 is offline"
+    : isMotionSensorStale
+      ? "Motion sensor not responding"
+      : motionViolation
+        ? "Excessive movement detected for 5+ seconds"
+        : null
 
   useEffect(() => {
     const load = async () => {
@@ -159,7 +190,7 @@ export default function QuizPage() {
           setVideoReady(true)
           setCameraActive(true)
           startTensorFlowDetection()
-        } catch (e) {
+        } catch {
           console.log("Video play interrupted")
         }
       }
@@ -191,7 +222,7 @@ export default function QuizPage() {
         console.log("Predictions:", predictions.length, predictions)
         const detected = predictions.length > 0
         setFaceDetected(detected)
-        setCanStartQuiz(detected)
+        setCanStartQuiz(detected && hardwareReady)
 
         if (detected) {
           noFaceSinceRef.current = null
@@ -245,6 +276,99 @@ export default function QuizPage() {
     }
   }, [quizState])
 
+  useEffect(() => {
+    setCanStartQuiz(faceDetected && cameraActive && hardwareReady)
+  }, [faceDetected, cameraActive, hardwareReady])
+
+  useEffect(() => {
+    if (!isQuizRunning) {
+      setBlockUI(false)
+      return
+    }
+
+    if (!hardwareReady) {
+      setBlockUI(true)
+      return
+    }
+
+    if (faceDetected) {
+      setBlockUI(false)
+    }
+  }, [isQuizRunning, hardwareReady, faceDetected])
+
+  const pushHardwareAlert = useCallback(async (reason: string, options?: { led?: boolean; buzzer?: boolean }) => {
+    if (!isQuizRunning) return
+    if (lastHardwareAlertReasonRef.current === reason) return
+
+    lastHardwareAlertReasonRef.current = reason
+
+    const reasonMessageMap: Record<string, string> = {
+      offline: "ESP32 connection lost during quiz.",
+      sensor_stale: "Motion sensor data is stale during quiz.",
+      excessive_movement: "Excessive movement detected for 5+ seconds.",
+      face_lost: "Face missing for 5+ seconds during quiz.",
+      tab_switch: "Tab switch detected during quiz."
+    }
+
+    try {
+      await triggerHardwareAlert(reason, options)
+      if (userId) {
+        await saveAlertToFirebase(userId, {
+          type: `quiz_hardware_${reason}`,
+          message: reasonMessageMap[reason] || reason,
+          courseId,
+          videoId: `quiz-${courseId}`
+        })
+      }
+    } catch (error) {
+      console.error("Failed to push quiz hardware alert:", error)
+    }
+  }, [isQuizRunning, triggerHardwareAlert, userId, courseId])
+
+  useEffect(() => {
+    if (!isQuizRunning) {
+      if (lastHardwareAlertReasonRef.current && hardwareReady) {
+        lastHardwareAlertReasonRef.current = ""
+        void clearHardwareAlert()
+      }
+      return
+    }
+
+    if (!hardwareOnline) {
+      void pushHardwareAlert("offline", { led: true, buzzer: true })
+      return
+    }
+
+    if (isMotionSensorStale) {
+      void pushHardwareAlert("sensor_stale", { led: true, buzzer: false })
+      return
+    }
+
+    if (motionViolation) {
+      void pushHardwareAlert("excessive_movement", { led: true, buzzer: true })
+      return
+    }
+
+    if (!faceDetected && noFaceCountdown === 0) {
+      void pushHardwareAlert("face_lost", { led: true, buzzer: true })
+      return
+    }
+
+    if (lastHardwareAlertReasonRef.current) {
+      lastHardwareAlertReasonRef.current = ""
+      void clearHardwareAlert()
+    }
+  }, [
+    isQuizRunning,
+    hardwareReady,
+    hardwareOnline,
+    isMotionSensorStale,
+    motionViolation,
+    faceDetected,
+    noFaceCountdown,
+    pushHardwareAlert,
+    clearHardwareAlert
+  ])
   useEffect(() => {
     if (quizState !== "mcq") return
     if (blockUI) {
@@ -311,6 +435,7 @@ export default function QuizPage() {
     const handleVisibilityChange = () => {
       if (document.hidden) {
         setTabSwitchDetected(true)
+        void pushHardwareAlert("tab_switch", { led: false, buzzer: true })
         if (countdownRef.current) {
           clearInterval(countdownRef.current)
           countdownRef.current = null
@@ -327,7 +452,7 @@ export default function QuizPage() {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
-  }, [quizState])
+  }, [quizState, pushHardwareAlert])
 
   useEffect(() => {
     if (quizState !== "coding") return
@@ -438,7 +563,31 @@ export default function QuizPage() {
               ⚠️ Tab switch detected! Quiz was terminated.
             </div>
           )}
-          
+
+          {!hardwareReady && (
+            <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", borderRadius: 10, padding: 15, marginBottom: 12, color: "#ef4444" }}>
+              ⚠️ Hardware issue: {hardwareBlockReason || "ESP32 unavailable"}
+            </div>
+          )}
+
+          <div style={{ background: "#0f172a", border: "1px solid #1f2937", borderRadius: 10, padding: 12, marginBottom: 12, fontSize: 12, color: "#cbd5e1" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span>ESP32</span>
+              <span style={{ color: hardwareOnline ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{hardwareOnline ? "Online" : "Offline"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+              <span>Motion</span>
+              <span style={{ color: isMotionDetected ? "#60a5fa" : "#94a3b8" }}>{isMotionDetected ? `${motionSeconds}s / 5s` : "Idle"}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span>Last heartbeat</span>
+              <span>{Number.isFinite(connectionAgeMs) ? `${Math.round(connectionAgeMs / 1000)}s ago` : "N/A"}</span>
+            </div>
+            {hardwareStatus?.alert?.reason && hardwareStatus.alert.reason !== "ok" && (
+              <div style={{ marginTop: 8, color: "#fbbf24" }}>Alert: {hardwareStatus.alert.reason}</div>
+            )}
+          </div>
+
           <video ref={videoRef} autoPlay muted playsInline style={{ ...styles.video, display: videoReady ? "block" : "none" }} />
           
           <p style={{ margin: "10px 0", color: faceDetected ? "#22c55e" : "#f59e0b" }}>
@@ -459,7 +608,7 @@ export default function QuizPage() {
             </button>
           ) : (
             <button onClick={() => { handleStartMCQ(); setTabSwitchDetected(false); }} disabled={!canStartQuiz} style={{ ...styles.btn, opacity: canStartQuiz ? 1 : 0.5 }}>
-              {canStartQuiz ? "✅ Start Quiz" : "⏳ Show your face to start..."}
+              {canStartQuiz ? "✅ Start Quiz" : !hardwareReady ? "⚠️ Waiting for ESP32..." : "⏳ Show your face to start..."}
             </button>
           )}
         </div>
@@ -506,8 +655,19 @@ export default function QuizPage() {
               </div>
             )}
             {faceDetected && <div style={styles.focused}>● Focused</div>}
+            {!hardwareReady && (
+              <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 14px", borderRadius: 20, color: "#ef4444", fontWeight: 600, fontSize: "clamp(11px, 2vw, 13px)" }}>
+                ⚠️ {hardwareBlockReason || "Hardware blocked"}
+              </div>
+            )}
             <div style={{ background: "#0f172a", border: "1px solid #3b82f6", padding: "10px 20px", borderRadius: 25, color: "#3b82f6", fontWeight: 700, fontSize: "clamp(14px, 3vw, 16px)" }}>{formatTime(timeLeft)}</div>
-            <button onClick={handleFinishMCQ} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Finish →</button>
+            <button
+              onClick={handleFinishMCQ}
+              disabled={!hardwareReady || blockUI}
+              style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: !hardwareReady || blockUI ? "not-allowed" : "pointer", opacity: !hardwareReady || blockUI ? 0.6 : 1, fontSize: "clamp(12px, 2vw, 14px)" }}
+            >
+              Finish →
+            </button>
           </div>
         </header>
 
@@ -536,11 +696,32 @@ export default function QuizPage() {
                   <span>Camera</span><span>{cameraActive ? "On" : "Off"}</span>
                 </div>
               </div>
+              <div style={{ marginTop: 12, background: "#0f172a", border: "1px solid #1f2937", borderRadius: 10, padding: 10, fontSize: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span>ESP32</span>
+                  <span style={{ color: hardwareOnline ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{hardwareOnline ? "Online" : "Offline"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span>Motion</span>
+                  <span style={{ color: motionViolation ? "#ef4444" : isMotionDetected ? "#60a5fa" : "#94a3b8" }}>
+                    {motionViolation ? "Violation" : isMotionDetected ? `${motionSeconds}s / 5s` : "Idle"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Heartbeat</span>
+                  <span>{Number.isFinite(connectionAgeMs) ? `${Math.round(connectionAgeMs / 1000)}s ago` : "N/A"}</span>
+                </div>
+              </div>
             </div>
           </aside>
 
           <main style={styles.main}>
-            <div style={styles.questionBox}>
+            {!hardwareReady && (
+              <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", borderRadius: 10, padding: "10px 12px", marginBottom: 12, color: "#fecaca", fontSize: "12px" }}>
+                ⚠️ {hardwareBlockReason || "Hardware monitoring blocked"}. Timer paused until issue is resolved.
+              </div>
+            )}
+            <div style={{ ...styles.questionBox, opacity: blockUI || !hardwareReady ? 0.6 : 1, pointerEvents: blockUI || !hardwareReady ? "none" : "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: "10px" }}>
                 <span style={{ background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: "clamp(11px, 2vw, 13px)", fontWeight: 600 }}>Q{currentQuestion + 1} of {quiz.mcqs.length}</span>
                 <span style={{ color: "#94a3b8", fontSize: "clamp(11px, 2vw, 13px)" }}>1 mark</span>
@@ -615,7 +796,18 @@ export default function QuizPage() {
               </div>
             )}
             {faceDetected && <div style={{ color: "#22c55e", fontSize: "clamp(12px, 2vw, 14px)" }}>✓ Face OK</div>}
-            <button onClick={handleSubmit} style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: "pointer", fontSize: "clamp(12px, 2vw, 14px)" }}>Submit Quiz</button>
+            {!hardwareReady && (
+              <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 14px", borderRadius: 20, color: "#ef4444", fontWeight: 600, fontSize: "clamp(11px, 2vw, 13px)" }}>
+                ⚠️ {hardwareBlockReason || "Hardware blocked"}
+              </div>
+            )}
+            <button
+              onClick={handleSubmit}
+              disabled={!hardwareReady || blockUI}
+              style={{ background: "#3b82f6", border: "none", color: "#fff", padding: "12px 28px", borderRadius: 10, fontWeight: 600, cursor: !hardwareReady || blockUI ? "not-allowed" : "pointer", opacity: !hardwareReady || blockUI ? 0.6 : 1, fontSize: "clamp(12px, 2vw, 14px)" }}
+            >
+              Submit Quiz
+            </button>
           </div>
         </header>
 
@@ -644,11 +836,32 @@ export default function QuizPage() {
                   <span>Camera</span><span>{cameraActive ? "On" : "Off"}</span>
                 </div>
               </div>
+              <div style={{ marginTop: 12, background: "#0f172a", border: "1px solid #1f2937", borderRadius: 10, padding: isMobile ? "8px" : 10, fontSize: isMobile ? "10px" : 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span>ESP32</span>
+                  <span style={{ color: hardwareOnline ? "#22c55e" : "#ef4444", fontWeight: 700 }}>{hardwareOnline ? "Online" : "Offline"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                  <span>Motion</span>
+                  <span style={{ color: motionViolation ? "#ef4444" : isMotionDetected ? "#60a5fa" : "#94a3b8" }}>
+                    {motionViolation ? "Violation" : isMotionDetected ? `${motionSeconds}s / 5s` : "Idle"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Heartbeat</span>
+                  <span>{Number.isFinite(connectionAgeMs) ? `${Math.round(connectionAgeMs / 1000)}s ago` : "N/A"}</span>
+                </div>
+              </div>
             </div>
           </aside>
 
           <main style={styles.main}>
-            <div style={styles.questionBox}>
+            {!hardwareReady && (
+              <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", borderRadius: 10, padding: "10px 12px", marginBottom: 12, color: "#fecaca", fontSize: "12px" }}>
+                ⚠️ {hardwareBlockReason || "Hardware monitoring blocked"}. Timer paused until issue is resolved.
+              </div>
+            )}
+            <div style={{ ...styles.questionBox, opacity: blockUI || !hardwareReady ? 0.6 : 1, pointerEvents: blockUI || !hardwareReady ? "none" : "auto" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 20, flexWrap: "wrap", gap: "10px" }}>
                 <span style={{ background: "#3b82f6", color: "#fff", padding: "6px 14px", borderRadius: 20, fontSize: "clamp(11px, 2vw, 13px)", fontWeight: 600 }}>Coding Q{currentQuestion + 1}</span>
                 <span style={{ color: "#94a3b8", fontSize: "clamp(11px, 2vw, 13px)" }}>{cq.marks} marks</span>
@@ -694,3 +907,4 @@ export default function QuizPage() {
 
   return null
 }
+

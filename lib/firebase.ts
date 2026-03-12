@@ -189,16 +189,81 @@ export const testFirebaseConnection = async () => {
       console.warn('Firebase Realtime Database not connected')
       return false
     }
-  } catch (error) {
+  } catch (error: any) {
     firebaseConnectionStatus = 'error'
     firebaseAvailable = false
-    console.error('Firebase connection test failed:', error)
+    // Only log detailed error if it's not a permission denied (common in restricted environments)
+    if (error.code === 'PERMISSION_DENIED') {
+      console.warn('Firebase connection test: Permission denied. Check database rules.')
+    } else {
+      console.error('Firebase connection test failed:', error)
+    }
     return false
   }
 }
 
 export const isFirebaseAvailable = () => firebaseAvailable
 export const getFirebaseConnectionStatus = () => firebaseConnectionStatus
+
+// Hardware control functions
+export const updateHardwareStatus = async (userId: string, deviceId: string, data: any) => {
+  try {
+    const hardwareRef = ref(realtimeDb, `hardwareStatus/${userId}/${deviceId}`)
+    await update(hardwareRef, {
+      ...data,
+      lastUpdated: Date.now()
+    })
+    return true
+  } catch (error) {
+    console.error('Failed to update hardware status:', error)
+    return false
+  }
+}
+
+export const getHardwareStatus = async (userId: string, deviceId: string) => {
+  try {
+    const hardwareRef = ref(realtimeDb, `hardwareStatus/${userId}/${deviceId}`)
+    const snapshot = await get(hardwareRef)
+    return snapshot.val()
+  } catch (error) {
+    console.error('Failed to get hardware status:', error)
+    return null
+  }
+}
+
+export const triggerHardwareAlert = async (userId: string, deviceId: string, reason: string) => {
+  try {
+    const alertRef = ref(realtimeDb, `hardwareStatus/${userId}/${deviceId}/alert`)
+    await set(alertRef, {
+      led: true,
+      buzzer: true,
+      reason: reason,
+      timestamp: Date.now()
+    })
+    console.log(`🚨 Hardware alert triggered: ${reason}`)
+    return true
+  } catch (error) {
+    console.error('Failed to trigger hardware alert:', error)
+    return false
+  }
+}
+
+export const clearHardwareAlert = async (userId: string, deviceId: string) => {
+  try {
+    const alertRef = ref(realtimeDb, `hardwareStatus/${userId}/${deviceId}/alert`)
+    await set(alertRef, {
+      led: false,
+      buzzer: false,
+      reason: 'ok',
+      timestamp: Date.now()
+    })
+    console.log('✅ Hardware alert cleared')
+    return true
+  } catch (error) {
+    console.error('Failed to clear hardware alert:', error)
+    return false
+  }
+}
 
 export const saveVideoProgressToFirestore = async (userId: string, data: {
   videoId: string

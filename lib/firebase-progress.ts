@@ -90,10 +90,18 @@ class FirebaseProgressManager {
         console.warn('Firebase not available, returning null')
         return null
       }
+      if (!this.userId?.trim() || this.userId === 'demo') {
+        return null
+      }
       const userRef = ref(this.db, `users/${this.userId}/learning`)
       const snapshot = await get(userRef)
       return snapshot.val()
-    } catch (error) {
+    } catch (error: any) {
+      const msg = String(error?.message || '').toLowerCase()
+      if (msg.includes('permission')) {
+        console.warn('Realtime DB read denied for getUserProgress. Falling back to local data.')
+        return null
+      }
       console.error('❌ Failed to get user progress:', error)
       return null
     }

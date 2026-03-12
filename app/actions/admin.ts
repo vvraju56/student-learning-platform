@@ -1,6 +1,6 @@
 "use server"
 
-import { adminAuth, adminDb, adminRealtime } from "@/lib/firebase-admin"
+import { adminDb, adminRealtime } from "@/lib/firebase-admin"
 import { auth, db, realtimeDb } from "@/lib/firebase"
 import { createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail } from "firebase/auth"
 import { doc, setDoc, getDoc, getDocs, collection, updateDoc, deleteDoc, query, where } from "firebase/firestore"
@@ -11,105 +11,231 @@ const ADMIN_USERNAME = "Mega"
 const DEFAULT_PASSWORD = "student"
 
 export async function listAllUsersAdmin() {
-  console.log("Admin Action: listAllUsersAdmin called");
-  try {
-    if (!adminAuth) {
-      console.error("Admin Action: adminAuth is null!");
-      throw new Error("Admin SDK not initialized")
+  console.log("Admin Action: listAllUsersAdmin called")
+
+  const adminResult = await listUsersFromAdminSdk()
+  if (adminResult.success) {
+    return adminResult
+  }
+
+  console.warn(
+    "Admin Action: Admin SDK user listing failed, trying client SDK fallback:",
+    adminResult.error
+  )
+
+  const fallbackResult = await listUsersFromFirestore()
+  if (fallbackResult.success) {
+    return fallbackResult
+  }
+
+  if (!adminDb && typeof fallbackResult.error === "string" && fallbackResult.error.includes("Access denied")) {
+    return {
+      success: false,
+      error: "Admin SDK is not configured on the server. Add firebase-service-account.json (or FIREBASE_SERVICE_ACCOUNT) to allow admin reads."
     }
-    
-    console.log("Admin Action: Fetching users from Auth...");
-    // 1. Get all users from Firebase Authentication
-    const listUsersResult = await adminAuth.listUsers()
-    const authUsers = listUsersResult.users
-    console.log(`Admin Action: Found ${authUsers.length} users in Auth`);
+  }
 
-    // 2. Get all profile data from Firestore to merge
-    console.log("Admin Action: Fetching profiles from Firestore...");
-    const profilesSnapshot = await adminDb.collection("profiles").get()
-    const profilesMap = new Map()
-    profilesSnapshot.docs.forEach(doc => profilesMap.set(doc.id, doc.data()))
-    console.log(`Admin Action: Found ${profilesMap.size} profiles`);
+  return fallbackResult
+}
 
-    const usersRef = adminDb.collection("users")
-    const usersSnapshot = await usersRef.get()
-    const usersMap = new Map()
-    usersSnapshot.docs.forEach(doc => usersMap.set(doc.id, doc.data()))
-    console.log(`Admin Action: Found ${usersMap.size} user docs`);
+function toIsoDate(value: any): string | null {
+  if (!value) return null
+  if (typeof value === "string") return value
 
-    // 3. Merge Auth users with Database data
-    const mergedUsers = await Promise.all(authUsers.map(async (authUser) => {
-      const profileData = profilesMap.get(authUser.uid) || {}
-      const userData = usersMap.get(authUser.uid) || {}
-      
-      // Skip the admin itself from the list
-      if (authUser.email === ADMIN_EMAIL) return null
+  if (typeof value === "number") {
+    const asDate = new Date(value)
+    return Number.isNaN(asDate.getTime()) ? null : asDate.toISOString()
+  }
 
-      // Get progress from Realtime DB
-      let progressData = {}
+  if (value instanceof Date) return value.toISOString()
+
+  if (typeof value?.toDate === "function") {
+    const asDate = value.toDate()
+    return asDate instanceof Date ? asDate.toISOString() : null
+  }
+
+  return null
+}
+
+function normalizeEmail(value: any): string {
+  return typeof value === "string" ? value.trim().toLowerCase() : ""
+}
+
+function dedupeUsersByIdentity(users: any[]): any[] {
+  const map = new Map<string, any>()
+  const withoutIdentity: any[] = []
+
+  for (const user of users) {
+    const emailKey = normalizeEmail(user?.email)
+    const uidKey = typeof user?.uid === "string" ? user.uid.trim() : ""
+    const identityKey = emailKey || uidKey
+
+    if (!identityKey) {
+      withoutIdentity.push(user)
+      continue
+    }
+
+    const existing = map.get(identityKey)
+    if (!existing) {
+      map.set(identityKey, user)
+      continue
+    }
+
+    const existingDate = Date.parse(toIsoDate(existing?.createdAt || existing?.created_at) || "")
+    const incomingDate = Date.parse(toIsoDate(user?.createdAt || user?.created_at) || "")
+
+    // Keep the newest record when duplicates share the same account identity.
+    if (Number.isFinite(incomingDate) && (!Number.isFinite(existingDate) || incomingDate >= existingDate)) {
+      map.set(identityKey, { ...existing, ...user })
+    } else {
+      map.set(identityKey, { ...user, ...existing })
+    }
+  }
+
+  return [...map.values(), ...withoutIdentity]
+}
+
+async function listUsersFromAdminSdk() {
+  console.log("Admin Action: listUsersFromAdminSdk starting...")
+
+  try {
+    if (!adminDb) {
+      console.warn("Admin SDK 'adminDb' is not initialized")
+      return { success: false, error: "Admin SDK not initialized" }
+    }
+
+    const [profilesSnapshot, usersSnapshot] = await Promise.all([
+      adminDb.collection("profiles").get(),
+      adminDb.collection("users").get()
+    ])
+
+    console.log(`Found ${profilesSnapshot.size} docs in 'profiles' collection via Admin SDK`)
+    console.log(`Found ${usersSnapshot.size} docs in 'users' collection via Admin SDK`)
+
+    const mergedUsers = new Map<string, any>()
+
+    for (const profileDoc of profilesSnapshot.docs) {
+      const data = profileDoc.data() as any
+      const uid = data.id || profileDoc.id
+      mergedUsers.set(uid, { uid, ...data })
+    }
+
+    for (const userDoc of usersSnapshot.docs) {
+      const data = userDoc.data() as any
+      const uid = data.uid || userDoc.id
+      mergedUsers.set(uid, { ...mergedUsers.get(uid), uid, ...data })
+    }
+
+    const usersList: any[] = []
+
+    for (const userData of mergedUsers.values()) {
+      const uid = userData.uid
+      if (!uid || !userData.email) continue
+      if (userData.email === ADMIN_EMAIL) continue
+      if (userData.deleted === true) continue
+
+      // Get progress from Realtime DB if possible
+      let progressData: any = {}
       try {
-        const snap = await adminRealtime.ref(`users/${authUser.uid}/learning`).get()
-        if (snap.exists()) {
-          progressData = snap.val()
-        } else {
-          // FALLBACK: If no Realtime DB data, calculate from Firestore video_progress
-          console.log(`Admin Action: Fallback to Firestore for ${authUser.uid}`);
-          const firestoreProgress = await adminDb.collection("video_progress")
-            .where("user_id", "==", authUser.uid)
-            .get();
-          
-          if (!firestoreProgress.empty) {
-            // Use a Set to count unique completed videos (courseId + videoId)
-            const completedVideos = new Set();
-            firestoreProgress.docs.forEach(d => {
-              const data = d.data();
-              if (data.completed && data.course_id && data.video_id) {
-                completedVideos.add(`${data.course_id}:${data.video_id}`);
-              }
-            });
-
-            const completedCount = completedVideos.size;
-            // The platform has 3 courses with 10 videos each = 30 total
-            const totalVideos = 30; 
-            const calcOverall = Math.min(100, Math.round((completedCount / totalVideos) * 100));
-            
-            console.log(`Admin Action: Accurate fallback for ${authUser.uid} - Unique videos: ${completedCount}`);
-            
-            progressData = {
-              overallProgress: calcOverall,
-              completedVideos: completedCount,
-              totalVideos: totalVideos,
-              isFirestoreFallback: true,
-              lastUpdated: new Date().toISOString()
-            };
+        if (adminRealtime) {
+          const progressSnapshot = await adminRealtime.ref(`users/${uid}/learning`).get()
+          if (progressSnapshot.exists()) {
+            progressData = progressSnapshot.val()
           }
         }
-      } catch (e) {
-        console.warn(`Admin Action: No progress for ${authUser.uid}`);
+      } catch {
+        console.warn(`No progress data for ${uid}`)
       }
 
-      return {
-        uid: authUser.uid,
-        email: authUser.email,
-        username: profileData.username || userData.username || "Unknown",
-        role: profileData.role || userData.role || "student",
-        createdAt: authUser.metadata.creationTime,
-        lastLogin: authUser.metadata.lastSignInTime,
-        deletionRequested: profileData.deletionRequested || false,
-        deletionRequestedAt: profileData.deletionRequestedAt || null,
+      usersList.push({
+        uid,
+        email: userData.email,
+        username: userData.username || "Unknown",
+        role: userData.role || "student",
+        createdAt: toIsoDate(userData.created_at || userData.createdAt) || new Date().toISOString(),
+        deletionRequested: userData.deletionRequested || false,
+        deletionRequestedAt: toIsoDate(userData.deletionRequestedAt),
         progress: progressData
-      }
-    }))
+      })
+    }
 
-    // Filter out nulls (admin) and sort by creation date
-    const finalUsers = mergedUsers
-      .filter(u => u !== null)
-      .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const dedupedUsers = dedupeUsersByIdentity(usersList)
+    if (dedupedUsers.length !== usersList.length) {
+      console.log(`Deduplicated admin users list: ${usersList.length} -> ${dedupedUsers.length}`)
+    }
 
-    console.log(`Admin Action: Returning ${finalUsers.length} merged users`);
-    return { success: true, users: finalUsers }
+    dedupedUsers.sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    return { success: true, users: dedupedUsers }
   } catch (err: any) {
-    console.error("Admin Action: Error listing users:", err.message);
+    console.error("Error listing users with Admin SDK:", err)
+    return { success: false, error: err?.message || "Admin SDK user listing failed" }
+  }
+}
+
+async function listUsersFromFirestore() {
+  console.log("Admin Action: listUsersFromFirestore starting...");
+  try {
+    if (!db) {
+        console.error("Client SDK 'db' is not initialized");
+        return { success: false, error: "Database not initialized" };
+    }
+    
+    const profilesRef = collection(db, "profiles")
+    let profilesSnapshot;
+    try {
+        profilesSnapshot = await getDocs(profilesRef)
+        console.log(`Found ${profilesSnapshot.size} docs in 'profiles' collection`);
+    } catch (e: any) {
+        if (e.code === 'permission-denied') {
+            console.error("Permission denied accessing profiles. Cannot list users.");
+            return { success: false, error: "Access denied to user profiles. Check Firestore rules." };
+        }
+        throw e;
+    }
+    
+    const usersList: any[] = []
+    
+    for (const doc of profilesSnapshot.docs) {
+      const data = doc.data()
+      const uid = data.id || doc.id
+      
+      if (data.email === ADMIN_EMAIL) continue
+      
+      // Get progress from Realtime DB if possible
+      let progressData = {}
+      try {
+        if (realtimeDb) {
+            const progressRef = ref(realtimeDb, `users/${uid}/learning`)
+            const snap = await get(progressRef)
+            if (snap.exists()) {
+                progressData = snap.val()
+            }
+        }
+      } catch {
+        console.warn(`No progress data for ${uid}`)
+      }
+      
+      usersList.push({
+        uid: uid,
+        email: data.email,
+        username: data.username || "Unknown",
+        role: data.role || "student",
+        createdAt: data.created_at || new Date().toISOString(),
+        deletionRequested: data.deletionRequested || false,
+        deletionRequestedAt: data.deletionRequestedAt || null,
+        progress: progressData
+      })
+    }
+
+    const dedupedUsers = dedupeUsersByIdentity(usersList)
+    if (dedupedUsers.length !== usersList.length) {
+      console.log(`Deduplicated fallback users list: ${usersList.length} -> ${dedupedUsers.length}`)
+    }
+
+    return { success: true, users: dedupedUsers }
+  } catch (err: any) {
+    console.error("Error in fallback listUsers:", err)
     return { success: false, error: err.message }
   }
 }
@@ -221,7 +347,7 @@ export async function getAllUsers() {
         if (progressSnapshot.exists()) {
           progressData = progressSnapshot.val()
         }
-      } catch (e) {
+      } catch {
         console.log("No progress data for user:", userData.uid)
       }
       
@@ -259,7 +385,6 @@ export async function getUserDetails(userId: string) {
     // Get progress from Realtime Database
     let progressData: any = {}
     let overallData: any = {}
-    let coursesData: any = {}
     
     try {
       const progressRef = ref(realtimeDb, `users/${userId}/learning`)
@@ -269,7 +394,7 @@ export async function getUserDetails(userId: string) {
         progressData = data.courses || {}
         overallData = data.overallProgress || {}
       }
-    } catch (e) {
+    } catch {
       console.log("No progress data")
     }
     
@@ -330,7 +455,7 @@ export async function softDeleteUser(userId: string) {
     // Remove from Realtime Database (soft delete)
     try {
       await remove(ref(realtimeDb, `users/${userId}`))
-    } catch (e) {
+    } catch {
       console.log("No Realtime DB data to remove")
     }
     
@@ -390,7 +515,7 @@ export async function permanentDeleteUser(userId: string) {
     // Delete from Realtime Database
     try {
       await remove(ref(realtimeDb, `users/${userId}`))
-    } catch (e) {
+    } catch {
       console.log("No Realtime DB data")
     }
     
@@ -483,3 +608,4 @@ export async function getDeletedUsers() {
     return { success: false, error: err.message }
   }
 }
+

@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation"
 import { onAuthStateChanged } from "firebase/auth"
 import { collection, getDocs, doc, setDoc, updateDoc, deleteDoc, getDoc, query, where } from "firebase/firestore"
 import { ref, get, remove } from "firebase/database"
-import { auth, db, realtimeDb } from "../../lib/firebase"
-import { softDeleteUser, restoreUser, permanentDeleteUser, resetUserPassword, getDeletedUsers, listAllUsersAdmin } from "../../app/actions/admin"
+import { auth, db, realtimeDb } from "@/lib/firebase"
+import { softDeleteUser, restoreUser, permanentDeleteUser, resetUserPassword, getDeletedUsers, listAllUsersAdmin } from "../actions/admin"
+import { AdminHardwareMonitor } from "@/components/admin-hardware-monitor"
 
 const ADMIN_EMAIL = "admin@123.in"
 
@@ -45,7 +46,7 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<User[]>([])
   const [selectedUser, setSelectedUser] = useState<UserDetails | null>(null)
-  const [activeTab, setActiveTab] = useState<"users" | "requests">("users")
+  const [activeTab, setActiveTab] = useState<"users" | "requests" | "hardware">("users")
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: "success" | "error", text: string } | null>(null)
   const router = useRouter()
@@ -63,8 +64,14 @@ export default function AdminPage() {
       }
 
       setUser(currentUser)
-      await loadUsers()
-      setLoading(false)
+      // Load users after setting user
+      try {
+        await loadUsers()
+      } catch (err) {
+        console.error("Error loading users:", err)
+      } finally {
+        setLoading(false)
+      }
     })
 
     return () => unsubscribe()
@@ -72,14 +79,22 @@ export default function AdminPage() {
 
   const loadUsers = async () => {
     try {
+      // Ensure this runs only on client
+      if (typeof window === 'undefined') return
+
       const result = await listAllUsersAdmin()
       if (result.success && result.users) {
         setUsers(result.users)
+        setMessage(null) // Clear previous errors
       } else {
-        setMessage({ type: "error", text: result.error || "Failed to load users" })
+        const errorMsg = result.error || "Failed to load users"
+        setMessage({ type: "error", text: errorMsg })
+        console.error("Load users error:", errorMsg)
       }
     } catch (err: any) {
-      setMessage({ type: "error", text: "Exception loading users: " + err.message })
+      const errorMsg = "Exception loading users: " + (err.message || "Unknown error")
+      setMessage({ type: "error", text: errorMsg })
+      console.error("Exception loading users:", err)
     }
   }
 
@@ -328,16 +343,27 @@ export default function AdminPage() {
         <div style={{ display: 'flex', gap: '10px' }}>
           <button className={`tab-btn ${activeTab === "users" ? "active" : ""}`} onClick={() => setActiveTab("users")}>Active Users ({users.length})</button>
           <button className={`tab-btn ${activeTab === "requests" ? "active" : ""}`} onClick={() => setActiveTab("requests")}>Requests ({requests.length})</button>
+          <button className={`tab-btn ${activeTab === "hardware" ? "active" : ""}`} onClick={() => setActiveTab("hardware")}>Hardware Status</button>
         </div>
         
-        {activeTab === "users" && (
+        {(activeTab === "users" || activeTab === "hardware") && (
           <button className="action-btn btn-view" onClick={() => { setLoading(true); loadUsers().then(() => setLoading(false)); }} style={{ margin: 0 }}>Refresh List</button>
         )}
       </div>
 
       {activeTab === "users" && (
         <div>
-          {users.length === 0 ? <div className="empty-state"><p>No active users found</p></div> : (
+          {message?.type === 'error' && message.text.includes('Access denied') ? (
+            <div className="empty-state" style={{ background: '#1a1a2e', padding: '20px', borderRadius: '8px' }}>
+              <p style={{ color: '#ef4444' }}>⚠️ {message.text}</p>
+              <p style={{ color: '#888', fontSize: '14px', marginTop: '10px' }}>
+                The admin panel cannot read user profiles due to database security rules. 
+                Please ensure the 'profiles' collection is readable by authenticated users or use an Admin SDK with appropriate privileges.
+              </p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="empty-state"><p>No active users found</p></div>
+          ) : (
             users.map((user) => (
               <div key={user.uid} className="user-card">
                 <div className="user-info">
@@ -375,6 +401,32 @@ export default function AdminPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {activeTab === "hardware" && (
+        <div>
+          <div className="empty-state" style={{ padding: "20px", textAlign: "left", background: "#1a1a2e", borderRadius: "12px", marginBottom: "20px" }}>
+            <h3 style={{ color: "#00d4ff", margin: "0 0 10px 0" }}>Hardware Monitoring Dashboard</h3>
+            <p style={{ color: "#888", margin: 0 }}>View real-time ESP32 connection status and motion detection for all active users.</p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '15px' }}>
+            {users.length === 0 ? (
+              <div className="empty-state"><p>No active users found</p></div>
+            ) : (
+              users.map((user) => (
+                <div key={user.uid} className="user-card" style={{ padding: '15px' }}>
+                  <div className="user-info" style={{ marginBottom: '10px' }}>
+                    <div className="user-details">
+                      <h3 style={{ fontSize: '16px' }}>{user.username}</h3>
+                      <p style={{ fontSize: '12px' }}>{user.email}</p>
+                    </div>
+                  </div>
+                  <AdminHardwareMonitor userId={user.uid} />
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -436,3 +488,5 @@ export default function AdminPage() {
     </div>
   )
 }
+
+
