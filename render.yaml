@@ -3,5 +3,18 @@ services:
     name: student-learning-platform
     env: node
     buildCommand: npm install && npm run build
-    startCommand: npm run start
+    startCommand: npm start
     region: oregon
+    envVars:
+      - key: NEXT_PUBLIC_PYTHON_WS_URL
+        sync: false
+
+  - type: web
+    name: student-learning-platform-eye
+    env: python
+    buildCommand: pip install -r "eye dectetion/requirements-server.txt"
+    startCommand: python "eye dectetion/web_server.py"
+    region: oregon
+    envVars:
+      - key: EYE_HOST
+        value: 0.0.0.0

@@ -215,13 +215,29 @@ npm run lint     # Run ESLint
 npm run test     # Run tests
 ```
 
-Optional eye-tracking env vars (for camera selection and process control):
+Optional eye-tracking env vars:
 ```bash
 PYTHON_BIN=path_to_python_exe   # Force specific Python interpreter
-EYE_CAMERA_INDEX=0              # Force camera index (default auto-scan: 0,1,2,3)
-EYE_CAMERA_CANDIDATES=0,1,2,3   # Camera scan order
 PYTHON_EYE_REUSE=true           # Reuse existing eye server on port 8001
+NEXT_PUBLIC_PYTHON_WS_URL=ws://127.0.0.1:8001  # Browser websocket URL for Python eye service
 ```
+
+## Render Deployment (Web + Python Eye Service)
+
+Python eye detection now runs in server mode and receives browser camera frames over WebSocket.
+This works on Render when deployed as a separate Python web service.
+
+1. Deploy the Next.js service (`student-learning-platform-web`).
+2. Deploy the Python service (`student-learning-platform-eye`) using:
+```bash
+pip install -r "eye dectetion/requirements-server.txt"
+python "eye dectetion/web_server.py"
+```
+3. Set web app env var:
+```bash
+NEXT_PUBLIC_PYTHON_WS_URL=wss://<your-python-service>.onrender.com
+```
+4. Keep your Firebase env vars configured in the web service as before.
 
 ## Contributing
 

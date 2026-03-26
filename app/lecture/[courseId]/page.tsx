@@ -147,26 +147,27 @@ export default function LecturePage() {
   const {
     isConnected: isPythonConnected,
     isDataFresh: isPythonDataFresh,
+    isCameraActive: isPythonCameraActive,
     result: pythonResult,
     startTracking: startPythonTracking,
     stopTracking: stopPythonTracking
-  } = usePythonEyeTracking()
+  } = usePythonEyeTracking(videoStream)
 
-  // Combined mode: prefer JS signals when JS camera is available.
-  // Python signals are used when JS camera is unavailable.
-  const usePythonSignals = !cameraActiveJS && isPythonConnected && isPythonDataFresh
-  const isUsingPythonCameraFallback = !cameraActiveJS && usePythonSignals
-  const isFaceDetected = isUsingPythonCameraFallback ? pythonResult.isFaceDetected : isFaceDetectedJS
-  const isEyesDetected = usePythonSignals ? pythonResult.isEyesDetected : isEyesDetectedJS
-  const areEyesClosed = usePythonSignals ? !!pythonResult.isDrowsy : false
-  const isEyeTrackingStable = usePythonSignals
+  // Hybrid mode: JS drives face status; Python drives advanced eye status when available.
+  const hasPythonEyeData = isPythonConnected && isPythonDataFresh
+  const usePythonFaceFallback = !cameraActiveJS && hasPythonEyeData
+  const usePythonEyeSignals = hasPythonEyeData
+  const isFaceDetected = usePythonFaceFallback ? pythonResult.isFaceDetected : isFaceDetectedJS
+  const isEyesDetected = usePythonEyeSignals ? pythonResult.isEyesDetected : isEyesDetectedJS
+  const areEyesClosed = usePythonEyeSignals ? !!pythonResult.isDrowsy : false
+  const isEyeTrackingStable = usePythonEyeSignals
     ? (pythonResult.isEyeTrackingStable && !pythonResult.isDrowsy)
     : isEyeTrackingStableJS
-  const eyeTrackingConfidence = usePythonSignals
+  const eyeTrackingConfidence = usePythonEyeSignals
     ? (pythonResult.isEyeTrackingStable ? 0.95 : 0.35)
     : eyeTrackingConfidenceJS
-  const cameraActive = cameraActiveJS || usePythonSignals
-  const showPythonPreview = !cameraActiveJS && isPythonConnected && isPythonDataFresh && !!pythonResult.previewJpeg
+  const cameraActive = cameraActiveJS || isPythonCameraActive || usePythonFaceFallback
+  const showPythonPreview = !cameraActiveJS && hasPythonEyeData && !!pythonResult.previewJpeg
   const pythonPreviewSrc = showPythonPreview ? `data:image/jpeg;base64,${pythonResult.previewJpeg}` : ""
   
   const previewVideoRef = useRef<HTMLVideoElement>(null)
@@ -540,6 +541,8 @@ export default function LecturePage() {
     lastAlertReasonRef.current = ""
     void clearHardwareAlert()
 
+    await startWebcam()
+    await new Promise((resolve) => setTimeout(resolve, 300))
     startPythonTracking()
 
     if (webcamFallbackTimerRef.current) {
@@ -552,7 +555,7 @@ export default function LecturePage() {
       }
     }, 2200)
 
-    console.log("✅ Python started (JS webcam fallback armed)")
+    console.log("✅ Monitoring started (JS face + Python eye)")
   }
 
   // Stop monitoring
