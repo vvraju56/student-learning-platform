@@ -36,6 +36,9 @@ interface ProgressTrackingOptions {
   onCourseCompleted?: (courseId: string) => void
 }
 
+const isPermissionError = (error: any) =>
+  String(error?.message || "").toLowerCase().includes("permission")
+
 export function useVideoProgressTracking(
   courseId: string,
   videoId: string,
@@ -104,8 +107,12 @@ export function useVideoProgressTracking(
         setCourseProgress(courseSnapshot.val())
       }
 
-    } catch (error) {
-      console.error('Error loading progress:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while loading video progress.")
+      } else {
+        console.error('Error loading progress:', error)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -136,7 +143,11 @@ export function useVideoProgressTracking(
       options.onProgressUpdate?.(videoData)
       
       return true
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while saving video progress.")
+        return false
+      }
       console.error('Error saving video progress:', error)
       return false
     }
@@ -159,7 +170,11 @@ export function useVideoProgressTracking(
       }
       
       return true
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while saving course progress.")
+        return false
+      }
       console.error('Error saving course progress:', error)
       return false
     }
@@ -233,8 +248,12 @@ export function useVideoProgressTracking(
 
       await saveCourseProgress(newProgress)
       
-    } catch (error) {
-      console.error('Error updating course progress:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while updating course progress.")
+      } else {
+        console.error('Error updating course progress:', error)
+      }
     }
   }, [courseProgress, courseId, userId, saveCourseProgress])
 
@@ -309,11 +328,22 @@ export function useVideoProgressTracking(
     if (!userId) return
 
     const courseRef = ref(window.realtimeDb, getCoursePath())
-    const unsubscribe = onValue(courseRef, (snapshot) => {
-      if (snapshot.exists()) {
-        setCourseProgress(snapshot.val())
+    const unsubscribe = onValue(
+      courseRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setCourseProgress(snapshot.val())
+        }
+      },
+      (error: any) => {
+        const msg = String(error?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("Video progress listener permission denied.")
+          return
+        }
+        console.error("Video progress listener error:", error)
       }
-    })
+    )
 
     return () => unsubscribe()
   }, [userId, courseId])

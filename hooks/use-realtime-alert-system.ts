@@ -90,34 +90,51 @@ export function useRealtimeAlertSystem(userId: string): RealtimeAlertSystemHook 
     try {
       const alertsRef = ref(realtimeDb, `users/${userId}/alerts`)
       
-      const unsubscribe = onValue(alertsRef, (snapshot: any) => {
-        const data = snapshot.val()
-        if (data) {
-          const alertsArray = Object.entries(data).map(([id, alertData]) => ({
-            id,
-            ...(alertData as Omit<AlertData, 'id'>)
-          }))
-          
-          setAlerts(alertsArray)
-          setMetrics(calculateMetrics(alertsArray))
-        } else {
-          setAlerts([])
-          setMetrics({
-            totalAlerts: 0,
-            alertsByType: {},
-            alertsBySeverity: {},
-            recentAlerts: []
-          })
+      const unsubscribe = onValue(
+        alertsRef,
+        (snapshot: any) => {
+          const data = snapshot.val()
+          if (data) {
+            const alertsArray = Object.entries(data).map(([id, alertData]) => ({
+              id,
+              ...(alertData as Omit<AlertData, 'id'>)
+            }))
+            
+            setAlerts(alertsArray)
+            setMetrics(calculateMetrics(alertsArray))
+          } else {
+            setAlerts([])
+            setMetrics({
+              totalAlerts: 0,
+              alertsByType: {},
+              alertsBySeverity: {},
+              recentAlerts: []
+            })
+          }
+          setIsConnected(true)
+        },
+        (error: any) => {
+          const msg = String(error?.message || '').toLowerCase()
+          if (msg.includes('permission')) {
+            console.warn('Realtime alerts listener permission denied.')
+          } else {
+            console.error('Realtime alerts listener error:', error)
+          }
+          setIsConnected(false)
         }
-        setIsConnected(true)
-      })
+      )
 
       return () => {
         unsubscribe()
         setIsConnected(false)
       }
-    } catch (error) {
-      console.error('Error setting up real-time alerts:', error)
+    } catch (error: any) {
+      const msg = String(error?.message || '').toLowerCase()
+      if (msg.includes('permission')) {
+        console.warn('Permission denied while setting up real-time alerts.')
+      } else {
+        console.error('Error setting up real-time alerts:', error)
+      }
       setIsConnected(false)
     }
   }, [userId, calculateMetrics])

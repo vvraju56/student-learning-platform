@@ -177,8 +177,14 @@ export function useHardwareMonitoring(config: HardwareConfig): HardwareMonitorin
         setListenerError(null)
       },
       (error) => {
-        console.error('Hardware monitoring error:', error)
-        setListenerError('Failed to connect to hardware status stream')
+        const msg = String((error as any)?.message || '').toLowerCase()
+        if (msg.includes('permission')) {
+          console.warn('Hardware monitoring permission denied for this user/device path.')
+          setListenerError('Permission denied for ESP32 status. Check Realtime Database rules.')
+        } else {
+          console.error('Hardware monitoring error:', error)
+          setListenerError('Failed to connect to hardware status stream')
+        }
       }
     )
 
@@ -230,7 +236,13 @@ export function useHardwareMonitoring(config: HardwareConfig): HardwareMonitorin
         timestamp: Date.now()
       })
       console.log(`Hardware alert triggered: ${reason}`)
-    } catch (error) {
+    } catch (error: any) {
+      const msg = String(error?.message || '').toLowerCase()
+      if (msg.includes('permission')) {
+        console.warn('Permission denied while triggering ESP32 alert.')
+        setListenerError('Permission denied while writing hardware alert')
+        return
+      }
       console.error('Failed to trigger hardware alert:', error)
       setListenerError('Failed to trigger alert on ESP32')
     }
@@ -252,7 +264,13 @@ export function useHardwareMonitoring(config: HardwareConfig): HardwareMonitorin
       })
       setMotionViolation(false)
       console.log('Hardware alert cleared')
-    } catch (error) {
+    } catch (error: any) {
+      const msg = String(error?.message || '').toLowerCase()
+      if (msg.includes('permission')) {
+        console.warn('Permission denied while clearing ESP32 alert.')
+        setListenerError('Permission denied while clearing hardware alert')
+        return
+      }
       console.error('Failed to clear hardware alert:', error)
       setListenerError('Failed to clear ESP32 alert')
     }
@@ -301,7 +319,13 @@ export function useHardwareMonitoring(config: HardwareConfig): HardwareMonitorin
         online: true,
         lastSensorUpdate: Date.now()
       })
-    } catch (error) {
+    } catch (error: any) {
+      const msg = String(error?.message || '').toLowerCase()
+      if (msg.includes('permission')) {
+        console.warn('Permission denied while refreshing hardware status.')
+        setListenerError('Permission denied while refreshing hardware status')
+        return
+      }
       console.error('Failed to refresh hardware status:', error)
     }
   }, [userId, activeDeviceId])

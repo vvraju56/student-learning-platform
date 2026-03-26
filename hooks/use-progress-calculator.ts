@@ -19,6 +19,9 @@ export interface OverallProgress {
   lastUpdated: number
 }
 
+const isPermissionError = (error: any) =>
+  String(error?.message || "").toLowerCase().includes("permission")
+
 export function useProgressCalculator(userId: string) {
   const [courseProgress, setCourseProgress] = useState<Record<string, CourseProgress>>({})
   const [overallProgress, setOverallProgress] = useState<OverallProgress>({
@@ -34,13 +37,24 @@ export function useProgressCalculator(userId: string) {
     if (!userId || !realtimeDb) return
 
     const progressRef = ref(realtimeDb, `users/${userId}/learning/courses`)
-    const unsubscribe = onValue(progressRef, (snapshot) => {
-      const data = snapshot.val()
-      if (data) {
-        setCourseProgress(data)
-        calculateOverallProgress(data)
+    const unsubscribe = onValue(
+      progressRef,
+      (snapshot) => {
+        const data = snapshot.val()
+        if (data) {
+          setCourseProgress(data)
+          calculateOverallProgress(data)
+        }
+      },
+      (error: any) => {
+        const msg = String(error?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("Progress listener permission denied. Check Firebase rules for users/{uid}/learning.")
+          return
+        }
+        console.error("Progress listener error:", error)
       }
-    })
+    )
 
     return unsubscribe
   }, [userId])
@@ -96,7 +110,11 @@ export function useProgressCalculator(userId: string) {
 
       // Recalculate course progress
       await recalculateCourseProgress(courseId)
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while updating video progress.")
+        return
+      }
       console.error('Error updating video progress:', error)
     }
   }
@@ -136,7 +154,11 @@ export function useProgressCalculator(userId: string) {
         videos: videos
       })
 
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while recalculating course progress.")
+        return
+      }
       console.error('Error recalculating course progress:', error)
     }
   }
@@ -148,7 +170,11 @@ export function useProgressCalculator(userId: string) {
       const currentRef = ref(realtimeDb, `users/${userId}/learning/current`)
       const snapshot = await get(currentRef)
       return snapshot.val()
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while getting continue-learning data.")
+        return null
+      }
       console.error('Error getting continue learning data:', error)
       return null
     }
@@ -179,7 +205,11 @@ export function useProgressCalculator(userId: string) {
       
       console.log('💾 Continue learning saved to Firebase')
       lastProgressSave = now
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while saving continue-learning data.")
+        return
+      }
       console.error('Error saving continue learning data:', error)
     }
   }
@@ -199,7 +229,11 @@ export function useProgressCalculator(userId: string) {
       
       console.log('💪 Continue learning force saved to Firebase')
       lastProgressSave = Date.now() // Reset throttle
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while force-saving continue-learning data.")
+        return
+      }
       console.error('Error force saving continue learning data:', error)
     }
   }

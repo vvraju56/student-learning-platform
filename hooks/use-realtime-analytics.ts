@@ -288,11 +288,17 @@ export function useRealtimeAnalytics() {
           setError("Failed to process data")
           setIsLoading(false)
         }
-      }, (err) => {
+      }, (err: any) => {
         if (!isMounted) return
-        console.error("📊 Analytics: Connection error:", err)
+        const msg = String(err?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("📊 Analytics: Permission denied for realtime listener.")
+          setError("Permission denied for analytics data")
+        } else {
+          console.error("📊 Analytics: Connection error:", err)
+          setError("Connection lost")
+        }
         setIsConnected(false)
-        setError("Connection lost")
         setIsLoading(false)
       })
     }

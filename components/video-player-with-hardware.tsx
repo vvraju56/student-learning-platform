@@ -654,7 +654,7 @@ export function VideoPlayerWithHardware({
           <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="flex items-center justify-between">
-              <span>Video paused: {getPauseReason()}. {motionViolation ? "Please stabilize your posture." : "Please look at the screen."}</span>
+                        <span>Video paused: {getPauseReason()}. {motionViolation ? "Please stabilize your posture." : "Please stabilize eye tracking."}</span>
               <Button size="sm" variant="outline" onClick={handleResumeVideo} className="ml-4 bg-transparent">
                 Resume Video
               </Button>
@@ -673,7 +673,7 @@ export function VideoPlayerWithHardware({
                       <p className="text-xl font-bold">Video Paused</p>
                       <p className="text-sm">{getPauseReason()}.</p>
                       <p className="text-sm">
-                        {motionViolation ? "Please stabilize your posture." : "Please look at the screen to continue."}
+                      {motionViolation ? "Please stabilize your posture." : "Please stabilize eye tracking to continue."}
                       </p>
                     </div>
                     <Button onClick={handleResumeVideo} size="lg">

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, onAuthStateChanged } from 'firebase/auth'
 import { getFirestore, collection, doc, setDoc, addDoc, serverTimestamp } from 'firebase/firestore'
 import { getDatabase, ref, set, get, onValue, push, update } from 'firebase/database'
 
@@ -37,6 +37,9 @@ function safeFirebaseWrite<T>(writeFunction: () => Promise<T>): Promise<T> {
   lastFirebaseWrite = now;
   return writeFunction();
 }
+
+const isPermissionError = (error: any) =>
+  String(error?.code || error?.message || "").toLowerCase().includes("permission")
 
 // Firebase Progress Saving Functions
 export const saveVideoProgressToFirebase = async (userId: string, courseId: string, videoId: string, data: any) => {
@@ -78,7 +81,11 @@ export const saveCourseProgressToFirebase = async (userId: string, courseId: str
       totalVideos: totalVideos,
       lastUpdated: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while saving course progress.')
+      return
+    }
     console.error('Error saving course progress to Firebase:', error)
   }
 }
@@ -90,7 +97,11 @@ export const saveOverallProgressToFirebase = async (userId: string, overallProgr
       courses: courseProgress,
       lastUpdated: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while saving overall progress.')
+      return
+    }
     console.error('Error saving overall progress to Firebase:', error)
   }
 }
@@ -103,7 +114,11 @@ export const saveContinueLearningDataToFirebase = async (userId: string, courseI
       lastWatchedTime: lastWatchedTime,
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while saving continue-learning data.')
+      return
+    }
     console.error('Error saving continue learning data to Firebase:', error)
   }
 }
@@ -117,7 +132,11 @@ export const saveAlertToFirebase = async (userId: string, alertData: any) => {
       videoId: alertData.videoId || '',
       timestamp: Date.now()
     })
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while saving alert data.')
+      return
+    }
     console.error('Error saving alert to Firebase:', error)
   }
 }
@@ -214,7 +233,11 @@ export const updateHardwareStatus = async (userId: string, deviceId: string, dat
       lastUpdated: Date.now()
     })
     return true
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while updating hardware status.')
+      return false
+    }
     console.error('Failed to update hardware status:', error)
     return false
   }
@@ -225,7 +248,11 @@ export const getHardwareStatus = async (userId: string, deviceId: string) => {
     const hardwareRef = ref(realtimeDb, `hardwareStatus/${userId}/${deviceId}`)
     const snapshot = await get(hardwareRef)
     return snapshot.val()
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while reading hardware status.')
+      return null
+    }
     console.error('Failed to get hardware status:', error)
     return null
   }
@@ -242,7 +269,11 @@ export const triggerHardwareAlert = async (userId: string, deviceId: string, rea
     })
     console.log(`🚨 Hardware alert triggered: ${reason}`)
     return true
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while triggering hardware alert.')
+      return false
+    }
     console.error('Failed to trigger hardware alert:', error)
     return false
   }
@@ -259,7 +290,11 @@ export const clearHardwareAlert = async (userId: string, deviceId: string) => {
     })
     console.log('✅ Hardware alert cleared')
     return true
-  } catch (error) {
+  } catch (error: any) {
+    if (isPermissionError(error)) {
+      console.warn('Permission denied while clearing hardware alert.')
+      return false
+    }
     console.error('Failed to clear hardware alert:', error)
     return false
   }
@@ -350,8 +385,20 @@ export const saveFocusAnalyticsToFirestore = async (userId: string, data: {
   }
 }
 
-setTimeout(() => {
-  testFirebaseConnection()
-}, 1000)
+if (typeof window !== 'undefined') {
+  setTimeout(() => {
+    if (auth.currentUser) {
+      void testFirebaseConnection()
+      return
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        void testFirebaseConnection()
+      }
+      unsubscribe()
+    })
+  }, 1000)
+}
 
 export default app

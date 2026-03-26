@@ -22,6 +22,9 @@ interface QuizRequirements {
   notOnCooldown: boolean
 }
 
+const isPermissionError = (error: any) =>
+  String(error?.message || "").toLowerCase().includes("permission")
+
 export function useQuizUnlockLogic() {
   const [validationStatus, setValidationStatus] = useState<{ [courseId: string]: QuizUnlockValidation }>({})
   const [isValidating, setIsValidating] = useState<{ [courseId: string]: boolean }>({})
@@ -47,8 +50,12 @@ export function useQuizUnlockLogic() {
       setValidationStatus(prev => ({ ...prev, [courseId]: validation }))
       
       return validation
-    } catch (error) {
-      console.error('Error validating quiz access:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while validating quiz access.")
+      } else {
+        console.error('Error validating quiz access:', error)
+      }
       const errorValidation: QuizUnlockValidation = {
         isUnlocked: false,
         isValid: false,
@@ -175,8 +182,12 @@ export function useQuizUnlockLogic() {
       }
 
       return { isValid, reasons }
-    } catch (error) {
-      console.error('Error validating video completion quality:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while validating video completion quality.")
+      } else {
+        console.error('Error validating video completion quality:', error)
+      }
       return { isValid: false, reasons: ['Failed to validate video completion'] }
     }
   }
@@ -209,8 +220,12 @@ export function useQuizUnlockLogic() {
       }
       
       return { isOnCooldown: false }
-    } catch (error) {
-      console.error('Error checking cooldown:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while checking quiz cooldown.")
+      } else {
+        console.error('Error checking cooldown:', error)
+      }
       return { isOnCooldown: false }
     }
   }
@@ -235,8 +250,12 @@ export function useQuizUnlockLogic() {
       
       console.log(`⏰ Quiz cooldown set for ${courseId}: ${minutes} minutes`)
       return true
-    } catch (error) {
-      console.error('Error setting quiz cooldown:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while setting quiz cooldown.")
+      } else {
+        console.error('Error setting quiz cooldown:', error)
+      }
       return false
     }
   }
@@ -273,8 +292,12 @@ export function useQuizUnlockLogic() {
       }
       
       return false
-    } catch (error) {
-      console.error('Error unlocking quiz:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while unlocking quiz.")
+      } else {
+        console.error('Error unlocking quiz:', error)
+      }
       return false
     }
   }

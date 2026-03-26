@@ -46,6 +46,10 @@ export class AnalyticsService {
     this.initUser()
   }
 
+  private isPermissionError(error: any): boolean {
+    return String(error?.message || "").toLowerCase().includes("permission")
+  }
+
   private initUser() {
     const user = auth.currentUser
     if (user) {
@@ -119,7 +123,11 @@ export class AnalyticsService {
         ...status,
         lastUpdated: Date.now()
       })
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while updating live status.")
+        return
+      }
       console.error("Error updating live status:", error)
     }
   }
@@ -130,7 +138,11 @@ export class AnalyticsService {
     try {
       const analyticsRef = ref(realtimeDb, `users/${this.userId}/analytics`)
       await update(analyticsRef, analytics)
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while updating analytics.")
+        return
+      }
       console.error("Error updating analytics:", error)
     }
   }
@@ -159,7 +171,11 @@ export class AnalyticsService {
         ...updated,
         lastUpdated: Date.now()
       })
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while incrementing analytics.")
+        return
+      }
       console.error("Error incrementing analytics:", error)
     }
   }
@@ -273,7 +289,11 @@ export class AnalyticsService {
         ...event,
         timestamp: Date.now()
       })
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while logging analytics event.")
+        return
+      }
       console.error("Error logging event:", error)
     }
   }
@@ -291,7 +311,11 @@ export class AnalyticsService {
         timeSpent: (current.timeSpent || 0) + additionalSeconds,
         lastUpdated: Date.now()
       })
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while updating course time.")
+        return
+      }
       console.error("Error updating course time spent:", error)
     }
   }
@@ -310,7 +334,11 @@ export class AnalyticsService {
         ...progressData,
         lastUpdated: Date.now()
       })
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while updating video progress.")
+        return
+      }
       console.error("Error updating video progress:", error)
     }
   }

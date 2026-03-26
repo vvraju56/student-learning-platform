@@ -70,6 +70,10 @@ export class FirebaseProgressService {
     this.userId = auth.currentUser?.uid || null
   }
 
+  private isPermissionError(error: any): boolean {
+    return String(error?.message || "").toLowerCase().includes("permission")
+  }
+
   // Initialize user data structure
   async initializeUserProgress(courseIds: string[]): Promise<void> {
     if (!this.userId) throw new Error('User not authenticated')
@@ -114,8 +118,12 @@ export class FirebaseProgressService {
         await set(userRef, initialData)
         console.log('✅ User progress initialized')
       }
-    } catch (error) {
-      console.error('Error initializing user progress:', error)
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while initializing user progress.')
+      } else {
+        console.error('Error initializing user progress:', error)
+      }
       throw error
     }
   }
@@ -141,7 +149,11 @@ export class FirebaseProgressService {
       await this.updateCourseProgress(videoData.courseId!)
       
       return true
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while updating video progress.')
+        return false
+      }
       console.error('Error updating video progress:', error)
       return false
     }
@@ -192,7 +204,11 @@ export class FirebaseProgressService {
       console.log('✅ Course progress updated:', courseId, courseProgress + '%')
       return true
       
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while updating course progress.')
+        return false
+      }
       console.error('Error updating course progress:', error)
       return false
     }
@@ -243,7 +259,11 @@ export class FirebaseProgressService {
       console.log('✅ Overall progress updated:', overallProgress + '%')
       return true
       
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while updating overall progress.')
+        return false
+      }
       console.error('Error updating overall progress:', error)
       return false
     }
@@ -259,7 +279,11 @@ export class FirebaseProgressService {
       const snapshot = await get(courseRef)
       
       return snapshot.exists() ? snapshot.val() : null
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while reading course progress.')
+        return null
+      }
       console.error('Error getting course progress:', error)
       return null
     }
@@ -275,7 +299,11 @@ export class FirebaseProgressService {
       const snapshot = await get(coursesRef)
       
       return snapshot.exists() ? snapshot.val() : {}
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while reading all courses progress.')
+        return {}
+      }
       console.error('Error getting all courses progress:', error)
       return {}
     }
@@ -291,7 +319,11 @@ export class FirebaseProgressService {
       const snapshot = await get(overallRef)
       
       return snapshot.exists() ? snapshot.val() : null
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while reading overall progress.')
+        return null
+      }
       console.error('Error getting overall progress:', error)
       return null
     }
@@ -323,7 +355,11 @@ export class FirebaseProgressService {
       console.log('✅ Quiz marked as completed:', courseId, score + '%')
       return true
       
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while marking quiz completion.')
+        return false
+      }
       console.error('Error marking quiz as completed:', error)
       return false
     }
@@ -336,10 +372,22 @@ export class FirebaseProgressService {
     const coursesPath = `users/${this.userId}/courses`
     const coursesRef = ref(window.realtimeDb, coursesPath)
     
-    return onValue(coursesRef, (snapshot) => {
-      const courses = snapshot.exists() ? snapshot.val() : {}
-      callback(courses)
-    })
+    return onValue(
+      coursesRef,
+      (snapshot) => {
+        const courses = snapshot.exists() ? snapshot.val() : {}
+        callback(courses)
+      },
+      (error: any) => {
+        const msg = String(error?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("Courses progress listener permission denied.")
+          callback({})
+          return
+        }
+        console.error("Courses progress listener error:", error)
+      }
+    )
   }
 
   // Real-time listener for overall progress
@@ -349,10 +397,22 @@ export class FirebaseProgressService {
     const overallPath = `users/${this.userId}/overall`
     const overallRef = ref(window.realtimeDb, overallPath)
     
-    return onValue(overallRef, (snapshot) => {
-      const overall = snapshot.exists() ? snapshot.val() : null
-      callback(overall)
-    })
+    return onValue(
+      overallRef,
+      (snapshot) => {
+        const overall = snapshot.exists() ? snapshot.val() : null
+        callback(overall)
+      },
+      (error: any) => {
+        const msg = String(error?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("Overall progress listener permission denied.")
+          callback(null as any)
+          return
+        }
+        console.error("Overall progress listener error:", error)
+      }
+    )
   }
 
   // Get user completion summary
@@ -411,7 +471,11 @@ export class FirebaseProgressService {
       }
 
       return true
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn('Permission denied while cleaning old data.')
+        return false
+      }
       console.error('Error cleaning up old data:', error)
       return false
     }

@@ -57,6 +57,10 @@ export interface UserAnalytics {
 }
 
 export class ReportService {
+  private isPermissionError(error: any): boolean {
+    return String(error?.message || "").toLowerCase().includes("permission")
+  }
+
   /**
    * Generate a detailed report for a single course
    */
@@ -182,7 +186,24 @@ export class ReportService {
         generatedAt: new Date().toISOString(),
         estimatedCompletionDate: estimatedCompletionDate.toISOString()
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn(`Permission denied while generating report for course ${courseId}. Returning empty report.`)
+        return {
+          courseId,
+          courseName,
+          totalVideos: 0,
+          completedVideos: 0,
+          overallProgress: 0,
+          totalWatchTime: 0,
+          averageWatchTimePerVideo: 0,
+          averageCompletionPercentage: 0,
+          totalViolations: 0,
+          estimatedTimeRemaining: 0,
+          videos: [],
+          generatedAt: new Date().toISOString()
+        }
+      }
       console.error(`Error generating course report for ${courseId}:`, error)
       throw error
     }
@@ -204,7 +225,11 @@ export class ReportService {
       )
 
       return reports
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while generating all course reports. Returning empty list.")
+        return []
+      }
       console.error("Error generating course reports:", error)
       throw error
     }
@@ -295,7 +320,25 @@ export class ReportService {
         ),
         generatedAt: new Date().toISOString()
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (this.isPermissionError(error)) {
+        console.warn("Permission denied while generating user analytics. Returning default metrics.")
+        return {
+          userId,
+          totalCourses: 0,
+          completedCourses: 0,
+          totalVideos: 0,
+          completedVideos: 0,
+          overallProgress: 0,
+          totalWatchTime: 0,
+          totalFocusTime: 0,
+          focusScore: 0,
+          averageTabSwitches: 0,
+          averageFaceMissingEvents: 0,
+          averageAutoPauses: 0,
+          generatedAt: new Date().toISOString()
+        }
+      }
       console.error("Error generating user analytics:", error)
       throw error
     }

@@ -47,6 +47,9 @@ const DEFAULT_THRESHOLDS: ViolationThresholds = {
   maxSkipPercentage: 30
 }
 
+const isPermissionError = (error: any) =>
+  String(error?.message || "").toLowerCase().includes("permission")
+
 export function useVideoCompletionLogic(
   thresholds: Partial<ViolationThresholds> = {}
 ) {
@@ -164,8 +167,12 @@ export function useVideoCompletionLogic(
       console.log('✅ Video marked as completed:', videoId)
       return true
       
-    } catch (error) {
-      console.error('Error marking video as completed:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while marking video as completed.")
+      } else {
+        console.error('Error marking video as completed:', error)
+      }
       return false
     }
   }, [userId])
@@ -216,8 +223,12 @@ export function useVideoCompletionLogic(
       }
       
       return { isOnCooldown: false }
-    } catch (error) {
-      console.error('Error checking cooldown status:', error)
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while checking video cooldown status.")
+      } else {
+        console.error('Error checking cooldown status:', error)
+      }
       return { isOnCooldown: false }
     }
   }, [userId])
@@ -240,7 +251,11 @@ export function useVideoCompletionLogic(
         lastCompletionResult: completionData
       })
       
-    } catch (error) {
+    } catch (error: any) {
+      if (isPermissionError(error)) {
+        console.warn("Permission denied while saving failed attempt.")
+        return
+      }
       console.error('Error saving failed attempt:', error)
     }
   }, [userId])
