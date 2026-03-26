@@ -41,6 +41,17 @@ function safeFirebaseWrite<T>(writeFunction: () => Promise<T>): Promise<T> {
 const isPermissionError = (error: any) =>
   String(error?.code || error?.message || "").toLowerCase().includes("permission")
 
+const permissionWarnedKeys = new Set<string>()
+const blockedWritePaths = new Set<string>()
+const lastAlertWriteAt = new Map<string, number>()
+const ALERT_DEDUPE_MS = 4000
+
+const warnPermissionOnce = (key: string, message: string) => {
+  if (permissionWarnedKeys.has(key)) return
+  permissionWarnedKeys.add(key)
+  console.warn(message)
+}
+
 // Firebase Progress Saving Functions
 export const saveVideoProgressToFirebase = async (userId: string, courseId: string, videoId: string, data: any) => {
   try {
@@ -124,20 +135,48 @@ export const saveContinueLearningDataToFirebase = async (userId: string, courseI
 }
 
 export const saveAlertToFirebase = async (userId: string, alertData: any) => {
+  const basePath = `users/${userId}/alerts`
+  if (!userId?.trim()) return false
+  if (!auth.currentUser || auth.currentUser.uid !== userId) return false
+  if (blockedWritePaths.has(basePath)) return false
+
+  const alertSignature = [
+    userId,
+    String(alertData?.type || ""),
+    String(alertData?.message || ""),
+    String(alertData?.courseId || ""),
+    String(alertData?.videoId || ""),
+  ].join("|")
+  const now = Date.now()
+  const lastTs = lastAlertWriteAt.get(alertSignature) || 0
+  if (now - lastTs < ALERT_DEDUPE_MS) {
+    return false
+  }
+  lastAlertWriteAt.set(alertSignature, now)
+
   try {
-    await push(ref(realtimeDb, `users/${userId}/alerts`), {
-      type: alertData.type,
-      message: alertData.message,
-      courseId: alertData.courseId || '',
-      videoId: alertData.videoId || '',
-      timestamp: Date.now()
+    await safeFirebaseWrite(async () => {
+      await push(ref(realtimeDb, basePath), {
+        type: alertData.type,
+        message: alertData.message,
+        courseId: alertData.courseId || '',
+        videoId: alertData.videoId || '',
+        timestamp: now
+      })
+      return true
     })
+    return true
   } catch (error: any) {
+    if (error instanceof Error && error.message === 'Rate limited') {
+      return false
+    }
     if (isPermissionError(error)) {
-      console.warn('Permission denied while saving alert data.')
-      return
+      blockedWritePaths.add(basePath)
+      warnPermissionOnce(basePath, 'Permission denied while saving alert data.')
+      return false
     }
     console.error('Error saving alert to Firebase:', error)
+    return false
   }
 }
 
@@ -148,7 +187,6 @@ export const listenToUserProgress = (userId: string, callback: (data: any) => vo
   }
 
   const progressRef = ref(realtimeDb, `users/${userId}/learning`)
-  const alertsRef = ref(realtimeDb, `users/${userId}/alerts`)
   
   const unsubscribeProgress = onValue(progressRef, (snapshot) => {
     const data = snapshot.val()
