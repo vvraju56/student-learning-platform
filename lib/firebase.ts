@@ -228,14 +228,13 @@ export const testFirebaseConnection = async () => {
     if (!realtimeDb) {
       throw new Error('Realtime Database not initialized')
     }
-    
-    // Test with a simple write/read operation
-    const testRef = ref(realtimeDb, 'connection-test')
-    await set(testRef, { timestamp: Date.now() })
-    const snapshot = await get(testRef)
-    const data = snapshot.val()
-    
-    if (data && data.timestamp) {
+
+    // Read-only connectivity probe (safe for restricted DB rules)
+    const connectedRef = ref(realtimeDb, '.info/connected')
+    const snapshot = await get(connectedRef)
+    const isConnected = snapshot.val() === true
+
+    if (isConnected) {
       firebaseConnectionStatus = 'connected'
       firebaseAvailable = true
       console.log('Firebase Realtime Database connected successfully')
@@ -249,9 +248,8 @@ export const testFirebaseConnection = async () => {
   } catch (error: any) {
     firebaseConnectionStatus = 'error'
     firebaseAvailable = false
-    // Only log detailed error if it's not a permission denied (common in restricted environments)
-    if (error.code === 'PERMISSION_DENIED') {
-      console.warn('Firebase connection test: Permission denied. Check database rules.')
+    if (isPermissionError(error)) {
+      warnPermissionOnce('firebase-connection-test', 'Firebase connection test skipped due to restricted rules.')
     } else {
       console.error('Firebase connection test failed:', error)
     }

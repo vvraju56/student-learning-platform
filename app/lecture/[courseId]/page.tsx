@@ -175,9 +175,7 @@ export default function LecturePage() {
   const videoRef = useRef<HTMLIFrameElement>(null)
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const webcamFallbackTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastAlertReasonRef = useRef<string>("")
-  const jsCameraActiveRef = useRef(false)
 
   const {
     hardwareStatus,
@@ -198,10 +196,6 @@ export default function LecturePage() {
   })
 
   const motionSeconds = Math.floor(motionDuration / 1000)
-
-  useEffect(() => {
-    jsCameraActiveRef.current = cameraActiveJS
-  }, [cameraActiveJS])
 
   // Load course data
   useEffect(() => {
@@ -515,14 +509,6 @@ export default function LecturePage() {
     }
   }, [canCountSession, totalDuration, currentVideoIndex, course])
 
-  useEffect(() => {
-    return () => {
-      if (webcamFallbackTimerRef.current) {
-        clearTimeout(webcamFallbackTimerRef.current)
-      }
-    }
-  }, [])
-
   // Auto-pause video when conditions fail
   useEffect(() => {
     if (!canCountSession && videoPlaying) {
@@ -547,16 +533,6 @@ export default function LecturePage() {
     await new Promise((resolve) => setTimeout(resolve, 300))
     startPythonTracking()
 
-    if (webcamFallbackTimerRef.current) {
-      clearTimeout(webcamFallbackTimerRef.current)
-    }
-    webcamFallbackTimerRef.current = setTimeout(() => {
-      if (!jsCameraActiveRef.current) {
-        // Always try JS webcam once. If camera is busy, hook handles graceful fallback.
-        void startWebcam()
-      }
-    }, 2200)
-
     console.log("✅ Monitoring started (JS face + Python eye)")
   }
 
@@ -568,10 +544,6 @@ export default function LecturePage() {
     setEyesNotDetectedCountdown(null)
     setEyeTrackingUnstableCountdown(null)
     setEyesClosedCountdown(null)
-    if (webcamFallbackTimerRef.current) {
-      clearTimeout(webcamFallbackTimerRef.current)
-      webcamFallbackTimerRef.current = null
-    }
     stopWebcam()
     stopPythonTracking()
     lastAlertReasonRef.current = ""
@@ -730,14 +702,12 @@ export default function LecturePage() {
                   src={`${currentVideo.url}${currentVideo.url.includes('?') ? '&' : '?'}enablejsapi=1&origin=${typeof window !== 'undefined' ? window.location.origin : ''}`}
                   className="absolute inset-0 w-full h-full"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
                 />
               ) : isGoogleDrive ? (
                 <iframe
                   src={currentVideo.url}
                   className="absolute inset-0 w-full h-full"
                   allow="autoplay; fullscreen"
-                  allowFullScreen
                 />
               ) : (
                 <video
