@@ -113,6 +113,10 @@ function isLocalWsUrl(url: string) {
   return url.includes("127.0.0.1") || url.includes("localhost")
 }
 
+function isLocalBrowserHost(hostname: string) {
+  return hostname === "localhost" || hostname === "127.0.0.1"
+}
+
 export function usePythonEyeTracking(sourceStream?: MediaStream | null): PythonEyeTrackingHook {
   const [isTracking, setIsTracking] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
@@ -173,14 +177,12 @@ export function usePythonEyeTracking(sourceStream?: MediaStream | null): PythonE
       return [envUrl]
     }
 
-    const candidates = ["ws://127.0.0.1:8001", "ws://localhost:8001"]
-    if (typeof window !== "undefined" && window.location.protocol === "https:") {
-      const host = window.location.hostname
-      if (host && host !== "localhost" && host !== "127.0.0.1") {
-        candidates.unshift(`wss://${host}:8001`)
-      }
+    if (typeof window !== "undefined" && !isLocalBrowserHost(window.location.hostname)) {
+      // In deployed environments we require an explicit websocket URL.
+      return []
     }
-    return candidates
+
+    return ["ws://127.0.0.1:8001", "ws://localhost:8001"]
   }, [])
 
   const requestCameraStream = useCallback(async () => {
@@ -371,7 +373,9 @@ export function usePythonEyeTracking(sourceStream?: MediaStream | null): PythonE
     setError(null)
 
     const envUrl = process.env.NEXT_PUBLIC_PYTHON_WS_URL?.trim()
-    const shouldTryLocalAutoStart = !envUrl || isLocalWsUrl(envUrl)
+    const isLocalRuntime =
+      typeof window !== "undefined" && isLocalBrowserHost(window.location.hostname)
+    const shouldTryLocalAutoStart = isLocalRuntime && (!envUrl || isLocalWsUrl(envUrl))
 
     if (shouldTryLocalAutoStart) {
       fetch("/api/python-eye/start", { method: "POST" }).catch(() => {
