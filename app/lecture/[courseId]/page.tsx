@@ -10,7 +10,6 @@ import {
   Eye, Play, X, Wifi, Activity, BellRing
 } from "lucide-react"
 import { useRealtimeFaceDetection } from "@/hooks/use-realtime-face-detection"
-import { usePythonEyeTracking } from "@/hooks/use-python-eye-tracking"
 import { auth, saveAlertToFirebase, saveVideoProgressToFirestore } from "@/lib/firebase"
 import { ProgressStorage } from "@/lib/progress-storage"
 import { useHardwareMonitoring } from "@/hooks/use-hardware-monitoring"
@@ -43,6 +42,7 @@ export default function LecturePage() {
   const [sessionTime, setSessionTime] = useState(0)
   const [timeLimitReached, setTimeLimitReached] = useState(false)
   const [courseBlocked, setCourseBlocked] = useState(false)
+  const [isStartingMonitoring, setIsStartingMonitoring] = useState(false)
   const [faceNotDetectedCountdown, setFaceNotDetectedCountdown] = useState<number | null>(null)
   const [eyesNotDetectedCountdown, setEyesNotDetectedCountdown] = useState<number | null>(null)
   const [eyeTrackingUnstableCountdown, setEyeTrackingUnstableCountdown] = useState<number | null>(null)
@@ -143,32 +143,13 @@ export default function LecturePage() {
     videoStream
   } = useRealtimeFaceDetection()
 
-  // Python eye tracking hook
-  const {
-    isConnected: isPythonConnected,
-    isDataFresh: isPythonDataFresh,
-    isCameraActive: isPythonCameraActive,
-    result: pythonResult,
-    startTracking: startPythonTracking,
-    stopTracking: stopPythonTracking
-  } = usePythonEyeTracking(videoStream)
-
-  // Hybrid mode: JS drives face status; Python drives advanced eye status when available.
-  const hasPythonEyeData = isPythonConnected && isPythonDataFresh
-  const usePythonFaceFallback = !cameraActiveJS && hasPythonEyeData
-  const usePythonEyeSignals = hasPythonEyeData
-  const isFaceDetected = usePythonFaceFallback ? pythonResult.isFaceDetected : isFaceDetectedJS
-  const isEyesDetected = usePythonEyeSignals ? pythonResult.isEyesDetected : isEyesDetectedJS
-  const areEyesClosed = usePythonEyeSignals ? !!pythonResult.isDrowsy : false
-  const isEyeTrackingStable = usePythonEyeSignals
-    ? (pythonResult.isEyeTrackingStable && !pythonResult.isDrowsy)
-    : isEyeTrackingStableJS
-  const eyeTrackingConfidence = usePythonEyeSignals
-    ? (pythonResult.isEyeTrackingStable ? 0.95 : 0.35)
-    : eyeTrackingConfidenceJS
-  const cameraActive = cameraActiveJS || isPythonCameraActive || usePythonFaceFallback
-  const showPythonPreview = !cameraActiveJS && hasPythonEyeData && !!pythonResult.previewJpeg
-  const pythonPreviewSrc = showPythonPreview ? `data:image/jpeg;base64,${pythonResult.previewJpeg}` : ""
+  // React-only monitoring mode (no Python service dependency in production).
+  const isFaceDetected = isFaceDetectedJS
+  const isEyesDetected = isEyesDetectedJS
+  const areEyesClosed = false
+  const isEyeTrackingStable = isEyeTrackingStableJS
+  const eyeTrackingConfidence = eyeTrackingConfidenceJS
+  const cameraActive = cameraActiveJS
   
   const previewVideoRef = useRef<HTMLVideoElement>(null)
 
@@ -215,23 +196,16 @@ export default function LecturePage() {
   useEffect(() => {
     const syncVisibility = () => {
       const visible = !document.hidden
-      setTabVisible((prev) => {
-        if (prev !== visible) {
-          console.log("👁️ Tab visibility:", visible ? "VISIBLE" : "HIDDEN")
-        }
-        return visible
-      })
+      setTabVisible(visible)
     }
 
     syncVisibility()
     document.addEventListener("visibilitychange", syncVisibility)
     window.addEventListener("focus", syncVisibility)
-    window.addEventListener("blur", syncVisibility)
 
     return () => {
       document.removeEventListener("visibilitychange", syncVisibility)
       window.removeEventListener("focus", syncVisibility)
-      window.removeEventListener("blur", syncVisibility)
     }
   }, [])
 
@@ -519,6 +493,8 @@ export default function LecturePage() {
 
   // Start monitoring with camera
   const startMonitoring = async () => {
+    if (isStartingMonitoring || monitoringActive) return
+    setIsStartingMonitoring(true)
     console.log("🚀 START MONITORING clicked")
     setMonitoringActive(true)
     setCourseBlocked(false)
@@ -529,11 +505,12 @@ export default function LecturePage() {
     lastAlertReasonRef.current = ""
     void clearHardwareAlert()
 
-    await startWebcam()
-    await new Promise((resolve) => setTimeout(resolve, 300))
-    startPythonTracking()
-
-    console.log("✅ Monitoring started (JS face + Python eye)")
+    try {
+      await startWebcam()
+      console.log("✅ Monitoring started (React JS face + eye)")
+    } finally {
+      setIsStartingMonitoring(false)
+    }
   }
 
   // Stop monitoring
@@ -545,7 +522,6 @@ export default function LecturePage() {
     setEyeTrackingUnstableCountdown(null)
     setEyesClosedCountdown(null)
     stopWebcam()
-    stopPythonTracking()
     lastAlertReasonRef.current = ""
     void clearHardwareAlert()
 
@@ -603,8 +579,6 @@ export default function LecturePage() {
   const getAttentionStatus = () => {
     if (!monitoringActive) return "Monitoring not started"
     if (!cameraActive) return "Camera not active"
-    if (!isPythonConnected) return "Python eye service offline - Timer paused"
-    if (!isPythonDataFresh && !cameraActiveJS) return "Python eye stream stale - Timer paused"
     if (areEyesClosed && eyesClosedCountdown !== null && eyesClosedCountdown > 0) return `Eyes closed - Learning pauses in ${eyesClosedCountdown}s`
     if (isEyesClosedTooLong) return "Eyes closed for 5s - Timer paused"
     if (!hardwareOnline) return "ESP32 offline - Timer paused"
@@ -782,9 +756,9 @@ export default function LecturePage() {
                   Stop Monitoring
                 </Button>
               ) : (
-                <Button onClick={startMonitoring}>
+                <Button onClick={startMonitoring} disabled={isStartingMonitoring}>
                   <Camera className="mr-2 h-4 w-4" />
-                  Start Monitoring
+                  {isStartingMonitoring ? "Starting..." : "Start Monitoring"}
                 </Button>
               )}
             </div>
@@ -827,22 +801,6 @@ export default function LecturePage() {
                 className="w-full h-full object-cover"
                 style={{ transform: 'scaleX(-1)' }}
               />
-              {showPythonPreview && (
-                <img
-                  src={pythonPreviewSrc}
-                  alt="Python camera preview"
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)" }}
-                />
-              )}
-              {!cameraActiveJS && isPythonConnected && !showPythonPreview && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                  <div className="text-center px-3">
-                    <Activity className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-                    <p className="text-xs text-blue-200">Python service is using the camera</p>
-                  </div>
-                </div>
-              )}
               {!cameraActive && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70">
                   <div className="text-center">
@@ -881,7 +839,7 @@ export default function LecturePage() {
                 </div>
               )}
             </div>
-            {faceDetectionError && !isPythonConnected && (
+            {faceDetectionError && (
               <p className="text-xs text-red-500 mt-1">{faceDetectionError}</p>
             )}
           </div>

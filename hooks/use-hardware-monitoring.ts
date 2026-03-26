@@ -6,6 +6,7 @@ import { realtimeDb } from '@/lib/firebase'
 
 let mappingPermissionWarned = false
 let streamPermissionWarned = false
+const isDev = process.env.NODE_ENV !== 'production'
 
 export interface HardwareStatus {
   online: boolean
@@ -138,10 +139,14 @@ export function useHardwareMonitoring(config: HardwareConfig): HardwareMonitorin
         if (msg.includes('permission')) {
           if (!mappingPermissionWarned) {
             mappingPermissionWarned = true
-            console.warn('Hardware device mapping read denied. Using default ESP32 device ID.')
+            if (isDev) {
+              console.warn('Hardware device mapping read denied. Using default ESP32 device ID.')
+            }
           }
         } else {
-          console.warn('Failed to resolve hardware device mapping:', error)
+          if (isDev) {
+            console.warn('Failed to resolve hardware device mapping:', error)
+          }
         }
       }
 
@@ -192,7 +197,9 @@ export function useHardwareMonitoring(config: HardwareConfig): HardwareMonitorin
         if (msg.includes('permission')) {
           if (!streamPermissionWarned) {
             streamPermissionWarned = true
-            console.warn('Hardware monitoring permission denied for this user/device path.')
+            if (isDev) {
+              console.warn('Hardware monitoring permission denied for this user/device path.')
+            }
           }
           setListenerError('Permission denied for ESP32 status. Check Realtime Database rules.')
         } else {
