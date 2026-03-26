@@ -541,13 +541,39 @@ export function useRealtimeFaceDetection(): RealtimeFaceDetectionHook {
         return
       }
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: "user",
+      const constraintCandidates: MediaStreamConstraints[] = [
+        {
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            facingMode: { ideal: "user" },
+          },
+          audio: false,
         },
-      })
+        {
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+          },
+          audio: false,
+        },
+        { video: true, audio: false },
+      ]
+
+      let stream: MediaStream | null = null
+      let cameraError: any = null
+      for (const constraints of constraintCandidates) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints)
+          break
+        } catch (err) {
+          cameraError = err
+        }
+      }
+
+      if (!stream) {
+        throw cameraError || new Error("Camera device unavailable")
+      }
 
       streamRef.current = stream
       setVideoStream(stream)
@@ -569,10 +595,18 @@ export function useRealtimeFaceDetection(): RealtimeFaceDetectionHook {
     } catch (error: any) {
       const errorName = typeof error?.name === "string" ? error.name : ""
       const deviceBusy = errorName === "NotReadableError"
+      const noDevice = errorName === "NotFoundError" || errorName === "OverconstrainedError"
+      const permissionDenied = errorName === "NotAllowedError" || errorName === "SecurityError"
 
       if (deviceBusy) {
         console.warn("Webcam busy: another app/service is using the camera")
         setFaceDetectionError("Webcam is already in use (Python eye service may own it).")
+      } else if (noDevice) {
+        console.error("Webcam not found:", error)
+        setFaceDetectionError("No camera device found. Connect/enable webcam and retry.")
+      } else if (permissionDenied) {
+        console.error("Webcam permission denied:", error)
+        setFaceDetectionError("Camera permission denied. Allow camera access in browser settings.")
       } else {
         console.error("Webcam access/model init error:", error)
         setFaceDetectionError("Webcam access denied or model failed to initialize")

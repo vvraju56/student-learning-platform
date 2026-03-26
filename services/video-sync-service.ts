@@ -3,6 +3,14 @@
 import { realtimeDb } from "@/lib/firebase"
 import { ref, update, get } from "firebase/database"
 
+const permissionWarned = new Set<string>()
+
+function warnPermissionOnce(key: string, message: string) {
+  if (permissionWarned.has(key)) return
+  permissionWarned.add(key)
+  console.warn(message)
+}
+
 export interface VideoSyncData {
   courseId: string
   videoId: string
@@ -272,7 +280,10 @@ export class VideoSyncService {
     } catch (error: any) {
       const msg = String(error?.message || "").toLowerCase()
       if (msg.includes("permission")) {
-        console.warn(`Realtime DB read denied for course ${courseId}. Falling back to local data.`)
+        warnPermissionOnce(
+          `course:${courseId}`,
+          `Realtime DB read denied for course ${courseId}. Falling back to local data.`,
+        )
         return null
       }
       console.error(`Error reading course progress for ${courseId}:`, error)
@@ -310,7 +321,7 @@ export class VideoSyncService {
     } catch (error: any) {
       const msg = String(error?.message || "").toLowerCase()
       if (msg.includes("permission")) {
-        console.warn("Realtime DB read denied for course progress. Falling back to local data.")
+        warnPermissionOnce("all-courses", "Realtime DB read denied for course progress. Falling back to local data.")
         return []
       }
       console.error(`Error reading all courses progress:`, error)
@@ -339,7 +350,7 @@ export class VideoSyncService {
     } catch (error: any) {
       const msg = String(error?.message || "").toLowerCase()
       if (msg.includes("permission")) {
-        console.warn("Realtime DB read denied for overall progress. Falling back to defaults.")
+        warnPermissionOnce("overall", "Realtime DB read denied for overall progress. Falling back to defaults.")
         return 0
       }
       console.error(`Error reading overall progress:`, error)
@@ -349,7 +360,6 @@ export class VideoSyncService {
 }
 
 export const videoSyncService = new VideoSyncService()
-
 
 
 

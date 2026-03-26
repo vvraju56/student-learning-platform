@@ -183,19 +183,43 @@ export function usePythonEyeTracking(sourceStream?: MediaStream | null): PythonE
     return candidates
   }, [])
 
+  const requestCameraStream = useCallback(async () => {
+    const constraintCandidates: MediaStreamConstraints[] = [
+      {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: { ideal: "user" },
+        },
+        audio: false,
+      },
+      {
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+        },
+        audio: false,
+      },
+      { video: true, audio: false },
+    ]
+
+    let lastError: any = null
+    for (const constraints of constraintCandidates) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints)
+      } catch (err) {
+        lastError = err
+      }
+    }
+    throw lastError || new Error("Camera stream unavailable")
+  }, [])
+
   const ensureCaptureReady = useCallback(async () => {
     let stream = sourceStreamRef.current
 
     if (!stream) {
       if (!ownStreamRef.current) {
-        ownStreamRef.current = await navigator.mediaDevices.getUserMedia({
-          video: {
-            width: { ideal: 640 },
-            height: { ideal: 480 },
-            facingMode: "user",
-          },
-          audio: false,
-        })
+        ownStreamRef.current = await requestCameraStream()
       }
       stream = ownStreamRef.current
     } else {
@@ -230,7 +254,7 @@ export function usePythonEyeTracking(sourceStream?: MediaStream | null): PythonE
     captureVideoRef.current = video
     activeStreamRef.current = stream
     setIsCameraActive(true)
-  }, [stopOwnStream])
+  }, [requestCameraStream, stopOwnStream])
 
   const sendFrame = useCallback(() => {
     const ws = wsRef.current
@@ -364,10 +388,21 @@ export function usePythonEyeTracking(sourceStream?: MediaStream | null): PythonE
         }
       })
       .catch((captureError: any) => {
+        const errorName = typeof captureError?.name === "string" ? captureError.name : ""
+        const noDevice = errorName === "NotFoundError" || errorName === "OverconstrainedError"
+        const permissionDenied = errorName === "NotAllowedError" || errorName === "SecurityError"
+        const deviceBusy = errorName === "NotReadableError"
+
         setIsCameraActive(false)
-        setError(
-          captureError?.message || "Camera access denied for Python eye tracking. Allow camera permission.",
-        )
+        if (noDevice) {
+          setError("No camera device found for Python eye tracking.")
+        } else if (permissionDenied) {
+          setError("Camera permission denied for Python eye tracking.")
+        } else if (deviceBusy) {
+          setError("Camera is currently busy. Close other camera apps/tabs and retry.")
+        } else {
+          setError(captureError?.message || "Camera access denied for Python eye tracking.")
+        }
       })
 
     if (!wsRef.current) {

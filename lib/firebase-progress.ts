@@ -1,6 +1,8 @@
 import { ref, set, get, getDatabase } from 'firebase/database'
 import { realtimeDb } from './firebase'
 
+let warnedGetUserProgressPermission = false
+
 // Firebase configuration for FREE PLAN usage
 interface ViolationCount {
   tabSwitch: number
@@ -99,7 +101,10 @@ class FirebaseProgressManager {
     } catch (error: any) {
       const msg = String(error?.message || '').toLowerCase()
       if (msg.includes('permission')) {
-        console.warn('Realtime DB read denied for getUserProgress. Falling back to local data.')
+        if (!warnedGetUserProgressPermission) {
+          warnedGetUserProgressPermission = true
+          console.warn('Realtime DB read denied for getUserProgress. Falling back to local data.')
+        }
         return null
       }
       console.error('❌ Failed to get user progress:', error)

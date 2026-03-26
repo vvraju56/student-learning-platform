@@ -220,22 +220,24 @@ export default function LecturePage() {
   // Tab visibility detection (avoid iframe blur false-positives).
   useEffect(() => {
     const syncVisibility = () => {
-      const isVisible = !document.hidden
-      const hasFocus = typeof document.hasFocus === "function" ? document.hasFocus() : true
-      const visible = isVisible && hasFocus
-      setTabVisible(visible)
-      console.log("👁️ Tab visibility:", visible ? "VISIBLE" : "HIDDEN")
+      const visible = !document.hidden
+      setTabVisible((prev) => {
+        if (prev !== visible) {
+          console.log("👁️ Tab visibility:", visible ? "VISIBLE" : "HIDDEN")
+        }
+        return visible
+      })
     }
 
     syncVisibility()
     document.addEventListener("visibilitychange", syncVisibility)
     window.addEventListener("focus", syncVisibility)
-    const poll = setInterval(syncVisibility, 1000)
+    window.addEventListener("blur", syncVisibility)
 
     return () => {
       document.removeEventListener("visibilitychange", syncVisibility)
       window.removeEventListener("focus", syncVisibility)
-      clearInterval(poll)
+      window.removeEventListener("blur", syncVisibility)
     }
   }, [])
 
