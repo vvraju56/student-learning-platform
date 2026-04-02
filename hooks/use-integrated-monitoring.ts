@@ -40,7 +40,7 @@ export interface IntegratedMonitoringResult {
 
 export function useIntegratedMonitoring(): IntegratedMonitoringResult {
   const { user } = useAuth()
-  const userId = user?.uid || 'demo-user'
+  const userId = user?.uid || ''
   
   // AI Monitoring
   const aiMonitoring = useRealtimeMonitoring(userId)

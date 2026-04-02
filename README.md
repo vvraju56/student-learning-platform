@@ -107,6 +107,7 @@ NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=your_measurement_id
 ```bash
 npm run dev
 ```
+This starts both Next.js and the Python eye-tracking WebSocket server (`eye dectetion/web_server.py`) together.
 
 5. Open http://localhost:3000
 
@@ -205,11 +206,21 @@ Uses TensorFlow.js with BlazeFace model to detect student presence during video 
 ## Scripts
 
 ```bash
-npm run dev      # Start development server
+npm run dev      # Start Next.js + Python eye server together
+npm run dev:web  # Start only Next.js
+npm run dev:eye  # Start only Python eye server
 npm run build    # Build for production
 npm run start    # Start production server
 npm run lint     # Run ESLint
 npm run test     # Run tests
+```
+
+Optional eye-tracking env vars (for camera selection and process control):
+```bash
+PYTHON_BIN=path_to_python_exe   # Force specific Python interpreter
+EYE_CAMERA_INDEX=0              # Force camera index (default auto-scan: 0,1,2,3)
+EYE_CAMERA_CANDIDATES=0,1,2,3   # Camera scan order
+PYTHON_EYE_REUSE=true           # Reuse existing eye server on port 8001
 ```
 
 ## Contributing

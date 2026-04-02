@@ -87,6 +87,12 @@ function loadServiceAccount(): ServiceAccountLike | null {
   const client_email = process.env.FIREBASE_CLIENT_EMAIL || ''
   const private_key = process.env.FIREBASE_PRIVATE_KEY || ''
 
+  console.log('Admin SDK: Checking env vars...')
+  console.log('Admin SDK: FIREBASE_PROJECT_ID:', project_id ? 'set' : 'NOT SET')
+  console.log('Admin SDK: FIREBASE_CLIENT_EMAIL:', client_email ? 'set' : 'NOT SET')
+  console.log('Admin SDK: FIREBASE_PRIVATE_KEY:', private_key ? 'set' : 'NOT SET')
+  console.log('Admin SDK: FIREBASE_DATABASE_URL:', process.env.FIREBASE_DATABASE_URL || process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL || 'NOT SET')
+
   if (project_id && client_email && private_key) {
     console.log('Admin SDK: Loading from split env vars (FIREBASE_PROJECT_ID/CLIENT_EMAIL/PRIVATE_KEY)...')
     return {

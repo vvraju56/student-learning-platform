@@ -427,29 +427,17 @@ export function VideoPlayerMonitored({
   useEffect(() => {
     const loadFaceDetection = async () => {
       try {
-        // Load TensorFlow.js
-        const script1 = document.createElement("script")
-        script1.src = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"
-        script1.crossOrigin = "anonymous"
-        document.body.appendChild(script1)
-        await new Promise((resolve) => {
-          script1.onload = resolve
-        })
-
-        // Load BlazeFace
-        const script2 = document.createElement("script")
-        script2.src = "https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface"
-        script2.crossOrigin = "anonymous"
-        document.body.appendChild(script2)
-        await new Promise((resolve) => {
-          script2.onload = resolve
-        })
-
-        // @ts-ignore
-        const model = await blazeface.load()
-        setFaceDetector(model)
+        const faceapi = await import("face-api.js")
+        const MODEL_URL = "/models"
+        
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL),
+        ])
+        
+        setFaceDetector(faceapi)
         setModelLoaded(true)
-        console.log("BlazeFace model loaded successfully")
+        console.log("face-api.js models loaded successfully")
       } catch (error) {
         console.error("Error loading face detection model:", error)
         setModelLoaded(false)
@@ -462,7 +450,7 @@ export function VideoPlayerMonitored({
   useEffect(() => {
     console.log("EyeTracking useEffect: Running with isVideoPlaying:", isVideoPlaying, "youtubePlayer:", youtubePlayer ? "available" : "null")
     if (cameraPermission === "granted" && isVideoPlaying && !videoPausedByEyeTracking && modelLoaded && faceDetector) {
-      console.log("Starting BlazeFace eye tracking")
+      console.log("Starting face-api.js eye tracking")
 
       eyeTrackingIntervalRef.current = setInterval(async () => {
         const video = videoRef.current
@@ -470,19 +458,18 @@ export function VideoPlayerMonitored({
 
         if (video && canvas && video.readyState === video.HAVE_ENOUGH_DATA && !video.paused && !video.ended) {
           try {
-            // Get predictions from BlazeFace
-            const predictions = await faceDetector.estimateFaces(video, false)
+            const faceapi = faceDetector
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+              .withFaceLandmarks(true)
 
-            if (predictions && predictions.length > 0) {
-              // Face detected - check if eyes are visible
-              const face = predictions[0]
-
-              // BlazeFace provides landmarks including eyes
-              // landmarks: [right eye, left eye, nose, mouth, right ear, left ear]
-              const hasEyes = face.landmarks && face.landmarks.length >= 2
+            if (detection) {
+              const landmarks = detection.landmarks
+              const leftEye = landmarks.getLeftEye()
+              const rightEye = landmarks.getRightEye()
+              
+              const hasEyes = leftEye && rightEye && leftEye.length === 6 && rightEye.length === 6
 
               if (hasEyes) {
-                // Eyes detected
                 setEyesDetected(true)
                 setNoEyesDuration(0)
                 setShowEyeAlert(false)
@@ -492,7 +479,6 @@ export function VideoPlayerMonitored({
                   handleResumeVideo()
                 }
               } else {
-                // Face detected but no clear eye landmarks
                 setEyesDetected(false)
                 setAttentionStatus("distracted")
 
@@ -506,29 +492,12 @@ export function VideoPlayerMonitored({
                     }
                     setVideoPausedByEyeTracking(true)
                     setShowEyeAlert(true)
-                    // setIsVideoPlaying(false) // This will be set by onStateChange from YouTube API
-                    if (youtubePlayer) {
-                      youtubePlayer.pauseVideo()
-                      console.log("EyeTracking: YouTube video paused via API.")
-                    } else {
-                      console.log("EyeTracking: youtubePlayer not available to pause video.")
-                    }
-                    // Handle async operation without await in state setter
-                    if (auth.currentUser) {
-                      saveAlertToFirebase(userId, {
-                        type: "eyes_not_detected",
-                        message: "Eyes not detected for 25+ seconds - video paused",
-                        courseId: courseId,
-                        videoId: videoId
-                      }).catch(error => console.error("Error saving alert:", error))
-                    }
+                    handlePauseVideo()
                   }
-
                   return newDuration
                 })
               }
             } else {
-              // No face detected at all
               setEyesDetected(false)
               setAttentionStatus("distracted")
 
@@ -538,48 +507,25 @@ export function VideoPlayerMonitored({
                 if (newDuration >= 25 && !videoPausedByEyeTracking) {
                   console.log("EyeTracking: PAUSING VIDEO - no face detected for 25+ seconds")
                   if (isFullscreen) {
-                      showFullscreenOverlay("Face not detected. Video paused.")
-                    }
+                    showFullscreenOverlay("Face not detected. Video paused.")
+                  }
                   setVideoPausedByEyeTracking(true)
                   setShowEyeAlert(true)
-                  // setIsVideoPlaying(false) // This will be set by onStateChange from YouTube API
-                  if (youtubePlayer) {
-                    youtubePlayer.pauseVideo()
-                    console.log("EyeTracking: YouTube video paused via API.")
-                  } else {
-                    console.log("EyeTracking: youtubePlayer not available to pause video.")
-                  }
-
-                  // Handle async operation without await in state setter
-                  if (auth.currentUser) {
-                    saveAlertToFirebase(userId, {
-                      type: "no_face_detected",
-                      message: "Face not detected for 25+ seconds - video paused",
-                      courseId: courseId,
-                      videoId: videoId
-                    }).catch(error => console.error("Error saving alert:", error))
-                  }
+                  handlePauseVideo()
                 }
-
                 return newDuration
               })
             }
           } catch (error) {
-            console.error("Error during BlazeFace detection:", error)
+            console.error("Error in eye tracking:", error)
           }
         }
-      }, 1000)
+      }, 500)
     } else {
       if (eyeTrackingIntervalRef.current) {
         console.log("EyeTracking useEffect cleanup: clearing eye tracking interval")
         clearInterval(eyeTrackingIntervalRef.current)
-      }
-    }
-
-    return () => {
-      if (eyeTrackingIntervalRef.current) {
-        console.log("EyeTracking useEffect cleanup on unmount: clearing eye tracking interval")
-        clearInterval(eyeTrackingIntervalRef.current)
+        eyeTrackingIntervalRef.current = null
       }
     }
   }, [cameraPermission, isVideoPlaying, videoPausedByEyeTracking, modelLoaded, faceDetector, userId, courseId, videoId, isFullscreen, youtubePlayer])
@@ -694,7 +640,7 @@ export function VideoPlayerMonitored({
           <Alert variant="destructive" className="mb-4">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription className="flex items-center justify-between">
-              <span>Video paused: Face/Eyes not detected for 25+ seconds. Please look at the screen.</span>
+                      <span>Video paused: Face/Eyes not detected for 25+ seconds. Please stabilize eye tracking.</span>
               <Button size="sm" variant="outline" onClick={handleResumeVideo} className="ml-4 bg-transparent">
                 Resume Video
               </Button>
@@ -712,7 +658,7 @@ export function VideoPlayerMonitored({
                     <div className="text-white">
                       <p className="text-xl font-bold">Video Paused</p>
                       <p className="text-sm">Your face was not detected for 25+ seconds.</p>
-                      <p className="text-sm">Please look at the screen to continue.</p>
+                    <p className="text-sm">Please stabilize eye tracking to continue.</p>
                     </div>
                     <Button onClick={handleResumeVideo} size="lg">
                       I'm Ready - Resume

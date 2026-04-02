@@ -54,8 +54,13 @@ export function useRealTimeCourseAnalytics(userId: string | undefined) {
         }
         setIsLoading(false)
       },
-      (error) => {
-        console.error("Error listening to courses progress:", error)
+      (error: any) => {
+        const msg = String(error?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("Courses analytics listener permission denied.")
+        } else {
+          console.error("Error listening to courses progress:", error)
+        }
         setIsLoading(false)
       }
     )
@@ -75,7 +80,12 @@ export function useRealTimeCourseAnalytics(userId: string | undefined) {
           setOverallProgress(null)
         }
       },
-      (error) => {
+      (error: any) => {
+        const msg = String(error?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("Overall analytics listener permission denied.")
+          return
+        }
         console.error("Error listening to overall progress:", error)
       }
     )
@@ -149,8 +159,13 @@ export function useRealTimeVideoAnalytics(userId: string | undefined) {
         }
         setIsLoading(false)
       },
-      (error) => {
-        console.error("Error listening to video analytics:", error)
+      (error: any) => {
+        const msg = String(error?.message || "").toLowerCase()
+        if (msg.includes("permission")) {
+          console.warn("Video analytics listener permission denied.")
+        } else {
+          console.error("Error listening to video analytics:", error)
+        }
         setIsLoading(false)
       }
     )
