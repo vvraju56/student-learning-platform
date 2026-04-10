@@ -25,6 +25,28 @@ export function useFaceDetection(): FaceDetectionHook {
   const detectorRef = useRef<any>(null)
   const detectionIntervalRef = useRef<number | null>(null)
 
+  const getOrCreateVideoElement = useCallback(() => {
+    if (videoRef.current) {
+      return videoRef.current
+    }
+
+    const internalVideo = document.createElement("video")
+    internalVideo.autoplay = true
+    internalVideo.muted = true
+    internalVideo.playsInline = true
+    internalVideo.setAttribute("data-face-detector-internal", "true")
+    internalVideo.style.position = "fixed"
+    internalVideo.style.left = "-9999px"
+    internalVideo.style.top = "-9999px"
+    internalVideo.style.width = "1px"
+    internalVideo.style.height = "1px"
+    internalVideo.style.opacity = "0"
+    internalVideo.style.pointerEvents = "none"
+    document.body.appendChild(internalVideo)
+    videoRef.current = internalVideo
+    return internalVideo
+  }, [])
+
   const stopDetectionLoop = useCallback(() => {
     if (detectionIntervalRef.current) {
       clearInterval(detectionIntervalRef.current)
@@ -100,7 +122,19 @@ export function useFaceDetection(): FaceDetectionHook {
 
   const startWebcam = async () => {
     if (streamRef.current) {
-      console.log("📷 Already have stream")
+      console.log("📷 Already have stream - reusing")
+      try {
+        const videoEl = getOrCreateVideoElement()
+        if (videoEl.srcObject !== streamRef.current) {
+          videoEl.srcObject = streamRef.current
+        }
+        await videoEl.play()
+        setIsWebcamActive(true)
+        startDetectionLoop()
+        void detectFace()
+      } catch (err: any) {
+        setFaceDetectionError(err?.message || "Camera error")
+      }
       return
     }
 
@@ -120,22 +154,13 @@ export function useFaceDetection(): FaceDetectionHook {
       console.log("✅ Got stream")
       streamRef.current = stream
       setVideoStream(stream)
-
-      // Small delay to ensure video element is ready
-      await new Promise(r => setTimeout(r, 100))
-
-      const videoEl = videoRef.current
-      if (videoEl) {
-        videoEl.srcObject = stream
-        videoEl.onplay = () => {
-          console.log("✅ Playing")
-          setIsWebcamActive(true)
-          startDetectionLoop()
-          detectFace()
-        }
-
-        videoEl.play().catch(e => console.log("Play error:", e))
-      }
+      const videoEl = getOrCreateVideoElement()
+      videoEl.srcObject = stream
+      await videoEl.play()
+      console.log("✅ Playing")
+      setIsWebcamActive(true)
+      startDetectionLoop()
+      void detectFace()
     } catch (err: any) {
       console.error("❌ Error:", err)
       setFaceDetectionError(err.message || "Camera error")
@@ -154,6 +179,12 @@ export function useFaceDetection(): FaceDetectionHook {
 
     if (videoRef.current) {
       videoRef.current.srcObject = null
+      videoRef.current.onplay = null
+      const isInternal = videoRef.current.getAttribute("data-face-detector-internal") === "true"
+      if (isInternal) {
+        videoRef.current.remove()
+        videoRef.current = null
+      }
     }
 
     setVideoStream(null)

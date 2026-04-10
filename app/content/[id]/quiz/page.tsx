@@ -100,9 +100,6 @@ export default function QuizPage() {
   
   const [quizState, setQuizState] = useState<QuizState>("ready")
   const [faceDetected, setFaceDetected] = useState(false)
-  const [eyesDetected, setEyesDetected] = useState(false)
-  const [eyeTrackingStable, setEyeTrackingStable] = useState(false)
-  const [eyeTrackingConfidence, setEyeTrackingConfidence] = useState(0)
   const [cameraActive, setCameraActive] = useState(false)
   const [tfModelLoaded, setTfModelLoaded] = useState(false)
   const [videoReady, setVideoReady] = useState(false)
@@ -125,10 +122,6 @@ export default function QuizPage() {
   const tfModelRef = useRef<blazeface.BlazeFaceModel | null>(null)
   const consecutiveNoFaceRef = useRef(0)
   const lastHardwareAlertReasonRef = useRef<string>("")
-  const eyeTrackingStableRef = useRef(false)
-  const stableEyeFrameStreakRef = useRef(0)
-  const unstableEyeFrameStreakRef = useRef(0)
-  const eyeConfidenceHistoryRef = useRef<number[]>([])
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((user) => {
@@ -158,8 +151,8 @@ export default function QuizPage() {
   const motionSeconds = Math.floor(motionDuration / 1000)
   const hardwareReady = hardwareOnline && !motionViolation && !isMotionSensorStale
   const isQuizRunning = quizState === "mcq" || quizState === "coding"
-  const attentionDetected = faceDetected && eyesDetected && eyeTrackingStable
-  const noAttentionReason = !faceDetected ? "Face missing" : !eyesDetected ? "Eyes not visible" : !eyeTrackingStable ? "Eye tracking unstable" : null
+  const attentionDetected = faceDetected
+  const noAttentionReason = !faceDetected ? "Face missing" : null
   const hardwareBlockReason = !hardwareOnline
     ? "ESP32 is offline"
     : isMotionSensorStale
@@ -188,13 +181,6 @@ export default function QuizPage() {
 
     try {
       setFaceDetected(false)
-      setEyesDetected(false)
-      setEyeTrackingStable(false)
-      setEyeTrackingConfidence(0)
-      eyeTrackingStableRef.current = false
-      stableEyeFrameStreakRef.current = 0
-      unstableEyeFrameStreakRef.current = 0
-      eyeConfidenceHistoryRef.current = []
       setCanStartQuiz(false)
       setNoFaceCountdown(null)
       noFaceSinceRef.current = null
@@ -222,99 +208,6 @@ export default function QuizPage() {
     }
   }
 
-  const clamp = (value: number, min = 0, max = 1) => Math.min(max, Math.max(min, value))
-
-  const hasBothEyesInPrediction = (prediction: any) => {
-    const landmarks = Array.isArray(prediction?.landmarks) ? prediction.landmarks : []
-    if (landmarks.length < 2) return false
-
-    const rightEye = landmarks[0]
-    const leftEye = landmarks[1]
-    const isValidPoint = (point: any) => Array.isArray(point) && point.length >= 2 && Number.isFinite(point[0]) && Number.isFinite(point[1])
-
-    if (!isValidPoint(rightEye) || !isValidPoint(leftEye)) {
-      return false
-    }
-
-    const eyeDistance = Math.abs(rightEye[0] - leftEye[0])
-    const maxEyeX = Math.max(Math.abs(rightEye[0]), Math.abs(leftEye[0]))
-    const isNormalized = maxEyeX > 0 && maxEyeX <= 2
-    const minEyeDistance = isNormalized ? 0.018 : 4
-
-    return eyeDistance > minEyeDistance
-  }
-
-  const calculateEyeTrackingScoreInPrediction = (prediction: any, eyesFound: boolean) => {
-    if (!eyesFound) return 0
-
-    const landmarks = Array.isArray(prediction?.landmarks) ? prediction.landmarks : []
-    if (landmarks.length < 2) return 0
-
-    const rightEye = landmarks[0]
-    const leftEye = landmarks[1]
-    const nose = landmarks.length >= 3 ? landmarks[2] : null
-
-    const isValidPoint = (point: any) =>
-      Array.isArray(point) &&
-      point.length >= 2 &&
-      Number.isFinite(point[0]) &&
-      Number.isFinite(point[1])
-
-    if (!isValidPoint(rightEye) || !isValidPoint(leftEye)) {
-      return 0
-    }
-
-    const eyeDistance = Math.abs(rightEye[0] - leftEye[0])
-    const maxEyeX = Math.max(Math.abs(rightEye[0]), Math.abs(leftEye[0]))
-    const isNormalized = maxEyeX > 0 && maxEyeX <= 2
-    const minEyeDistance = isNormalized ? 0.018 : 5
-    if (eyeDistance < minEyeDistance) return 0
-
-    const distanceScore = clamp((eyeDistance - minEyeDistance) / (minEyeDistance * 2))
-    const eyesY = (rightEye[1] + leftEye[1]) / 2
-    const eyeTiltRatio = Math.abs(rightEye[1] - leftEye[1]) / eyeDistance
-    const tiltScore = clamp(1 - (eyeTiltRatio / 0.45))
-
-    if (eyeTiltRatio > 0.55) return 0
-
-    const eyeMidX = (rightEye[0] + leftEye[0]) / 2
-    const topLeft = Array.isArray(prediction?.topLeft) ? prediction.topLeft : null
-    const bottomRight = Array.isArray(prediction?.bottomRight) ? prediction.bottomRight : null
-    const hasValidFaceBox =
-      Array.isArray(topLeft) &&
-      topLeft.length >= 2 &&
-      Number.isFinite(topLeft[1]) &&
-      Array.isArray(bottomRight) &&
-      bottomRight.length >= 2 &&
-      Number.isFinite(bottomRight[1]) &&
-      Math.abs(bottomRight[1] - topLeft[1]) > 0
-
-    const verticalRatio = hasValidFaceBox
-      ? (eyesY - topLeft[1]) / Math.max(Math.abs(bottomRight[1] - topLeft[1]), 1e-5)
-      : isNormalized
-        ? eyesY
-        : 0.34
-    const verticalScore = clamp(1 - (Math.abs(verticalRatio - 0.34) / 0.45))
-
-    if (!isValidPoint(nose)) {
-      return clamp((distanceScore * 0.55) + (tiltScore * 0.25) + (verticalScore * 0.2))
-    }
-
-    const noseScoreBase = isNormalized ? 1 : 0.85
-    const noseOffsetRatio = Math.abs(nose[0] - eyeMidX) / eyeDistance
-    const noseBelowEyes = nose[1] >= eyesY - (eyeDistance * 0.6)
-    const noseScore = clamp(1 - (noseOffsetRatio / 0.65))
-    const noseVerticalScore = noseBelowEyes ? 1 : 0.55
-
-    return clamp(
-      (distanceScore * 0.3)
-      + (tiltScore * 0.25)
-      + (verticalScore * 0.15)
-      + (noseScore * 0.2)
-      + (noseVerticalScore * 0.1 * noseScoreBase),
-    )
-  }
-
   const startTensorFlowDetection = () => {
     if (detectIntervalRef.current) clearInterval(detectIntervalRef.current)
 
@@ -326,51 +219,9 @@ export default function QuizPage() {
       try {
         const predictions = await tfModelRef.current.estimateFaces(videoRef.current, false)
         const detected = predictions.length > 0
-        const eyesFound = detected ? hasBothEyesInPrediction(predictions[0]) : false
-        let eyeTrackingStableNow = false
-        let smoothedEyeScore = 0
 
-        if (detected && eyesFound) {
-          const eyeScore = calculateEyeTrackingScoreInPrediction(predictions[0], eyesFound)
-          eyeConfidenceHistoryRef.current.push(eyeScore)
-          if (eyeConfidenceHistoryRef.current.length > 12) {
-            eyeConfidenceHistoryRef.current.shift()
-          }
-          smoothedEyeScore =
-            eyeConfidenceHistoryRef.current.reduce((sum, value) => sum + value, 0)
-            / eyeConfidenceHistoryRef.current.length
-
-          if (smoothedEyeScore >= 0.58) {
-            stableEyeFrameStreakRef.current += 1
-            unstableEyeFrameStreakRef.current = 0
-            if (stableEyeFrameStreakRef.current >= 2) {
-              eyeTrackingStableNow = true
-            } else {
-              eyeTrackingStableNow = eyeTrackingStableRef.current
-            }
-          } else {
-            unstableEyeFrameStreakRef.current += 1
-            stableEyeFrameStreakRef.current = 0
-            if (unstableEyeFrameStreakRef.current >= 4 || smoothedEyeScore <= 0.42) {
-              eyeTrackingStableNow = false
-            } else {
-              eyeTrackingStableNow = eyeTrackingStableRef.current
-            }
-          }
-        } else {
-          stableEyeFrameStreakRef.current = 0
-          unstableEyeFrameStreakRef.current = 0
-          eyeConfidenceHistoryRef.current = []
-          smoothedEyeScore = 0
-          eyeTrackingStableNow = false
-        }
-
-        const isAttentionDetected = detected && eyesFound && eyeTrackingStableNow
+        const isAttentionDetected = detected
         setFaceDetected(detected)
-        setEyesDetected(eyesFound)
-        setEyeTrackingStable(eyeTrackingStableNow)
-        setEyeTrackingConfidence(smoothedEyeScore)
-        eyeTrackingStableRef.current = eyeTrackingStableNow
         setCanStartQuiz(isAttentionDetected && hardwareReady)
 
         if (isAttentionDetected) {
@@ -455,8 +306,6 @@ export default function QuizPage() {
       sensor_stale: "Motion sensor data is stale during quiz.",
       excessive_movement: "Excessive movement detected for 5+ seconds.",
       face_lost: "Face missing for 5+ seconds during quiz.",
-      eyes_lost: "Eyes not detected for 5+ seconds during quiz.",
-      eye_unstable: "Advanced eye tracking unstable for 5+ seconds during quiz.",
       tab_switch: "Tab switch detected during quiz."
     }
 
@@ -504,16 +353,6 @@ export default function QuizPage() {
       return
     }
 
-    if (faceDetected && !eyesDetected && noFaceCountdown === 0) {
-      void pushHardwareAlert("eyes_lost", { led: true, buzzer: true })
-      return
-    }
-
-    if (faceDetected && eyesDetected && !eyeTrackingStable && noFaceCountdown === 0) {
-      void pushHardwareAlert("eye_unstable", { led: true, buzzer: true })
-      return
-    }
-
     if (lastHardwareAlertReasonRef.current) {
       lastHardwareAlertReasonRef.current = ""
       void clearHardwareAlert()
@@ -525,8 +364,6 @@ export default function QuizPage() {
     isMotionSensorStale,
     motionViolation,
     faceDetected,
-    eyesDetected,
-    eyeTrackingStable,
     noFaceCountdown,
     pushHardwareAlert,
     clearHardwareAlert
@@ -755,12 +592,6 @@ export default function QuizPage() {
           <p style={{ margin: "10px 0", color: faceDetected ? "#22c55e" : "#f59e0b" }}>
             {faceDetected ? "✓ Face detected" : "⏳ Waiting for face detection..."}
           </p>
-          <p style={{ margin: "4px 0 10px", color: faceDetected ? (eyesDetected ? "#22c55e" : "#f59e0b") : "#94a3b8" }}>
-            {!faceDetected ? "⏳ Eye detection starts after face is visible" : eyesDetected ? "✓ Eyes detected" : "⏳ Waiting for eye detection..."}
-          </p>
-          <p style={{ margin: "4px 0 10px", color: !faceDetected || !eyesDetected ? "#94a3b8" : eyeTrackingStable ? "#22c55e" : "#f59e0b" }}>
-            {!faceDetected || !eyesDetected ? "⏳ Advanced eye tracking starts after face + eyes are stable" : eyeTrackingStable ? `✓ Eye tracking stable (${Math.round(eyeTrackingConfidence * 100)}%)` : "⏳ Stabilize your eyes to continue..."}
-          </p>
           
           {tfModelLoaded ? (
             <p style={{ color: "#22c55e", fontSize: 12 }}>✓ TensorFlow Ready</p>
@@ -776,7 +607,7 @@ export default function QuizPage() {
             </button>
           ) : (
             <button onClick={() => { handleStartMCQ(); setTabSwitchDetected(false); }} disabled={!canStartQuiz} style={{ ...styles.btn, opacity: canStartQuiz ? 1 : 0.5 }}>
-              {canStartQuiz ? "✅ Start Quiz" : !hardwareReady ? "⚠️ Waiting for ESP32..." : !faceDetected ? "⏳ Show your face to start..." : !eyesDetected ? "⏳ Keep both eyes visible to start..." : "⏳ Stabilize eye tracking to start..."}
+              {canStartQuiz ? "✅ Start Quiz" : !hardwareReady ? "⚠️ Waiting for ESP32..." : "⏳ Show your face to start..."}
             </button>
           )}
         </div>
@@ -822,7 +653,7 @@ export default function QuizPage() {
                 ⚠️ {noAttentionReason || "Attention lost"}! {noFaceCountdown}s
               </div>
             )}
-            {attentionDetected && <div style={styles.focused}>● Focused (Eyes)</div>}
+            {attentionDetected && <div style={styles.focused}>● Focused</div>}
             {!hardwareReady && (
               <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 14px", borderRadius: 20, color: "#ef4444", fontWeight: 600, fontSize: "clamp(11px, 2vw, 13px)" }}>
                 ⚠️ {hardwareBlockReason || "Hardware blocked"}
@@ -854,17 +685,11 @@ export default function QuizPage() {
               </div>
             </div>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: isMobile ? "12px" : 20 }}>
-              <div style={{ fontSize: isMobile ? "12px" : 14, fontWeight: 600, marginBottom: 15 }}>Face + Advanced Eye Monitoring</div>
+              <div style={{ fontSize: isMobile ? "12px" : 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10, marginTop: 15 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 10, marginTop: 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
                   <span>Face</span><span style={{ color: faceDetected ? "#22c55e" : "#ef4444" }}>{faceDetected ? "OK" : "No Face"}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${!faceDetected ? "#f59e0b" : eyesDetected ? "#22c55e" : "#ef4444"}` }}>
-                  <span>Eyes</span><span style={{ color: !faceDetected ? "#f59e0b" : eyesDetected ? "#22c55e" : "#ef4444" }}>{!faceDetected ? "Wait" : eyesDetected ? "OK" : "No Eyes"}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12, border: `1px solid ${!faceDetected || !eyesDetected ? "#f59e0b" : eyeTrackingStable ? "#22c55e" : "#ef4444"}` }}>
-                  <span>EyeTrack</span><span style={{ color: !faceDetected || !eyesDetected ? "#f59e0b" : eyeTrackingStable ? "#22c55e" : "#ef4444" }}>{!faceDetected || !eyesDetected ? "Wait" : eyeTrackingStable ? `${Math.round(eyeTrackingConfidence * 100)}%` : "Low"}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: 10, background: "#0f172a", borderRadius: 10, fontSize: 12 }}>
                   <span>Camera</span><span>{cameraActive ? "On" : "Off"}</span>
@@ -969,7 +794,7 @@ export default function QuizPage() {
                 ⚠️ {noAttentionReason || "Attention lost"}! {noFaceCountdown}s
               </div>
             )}
-            {attentionDetected && <div style={{ color: "#22c55e", fontSize: "clamp(12px, 2vw, 14px)" }}>✓ Face + Eyes + Tracking OK</div>}
+            {attentionDetected && <div style={{ color: "#22c55e", fontSize: "clamp(12px, 2vw, 14px)" }}>✓ Face detected</div>}
             {!hardwareReady && (
               <div style={{ background: "rgba(239,68,68,0.2)", border: "1px solid #ef4444", padding: "8px 14px", borderRadius: 20, color: "#ef4444", fontWeight: 600, fontSize: "clamp(11px, 2vw, 13px)" }}>
                 ⚠️ {hardwareBlockReason || "Hardware blocked"}
@@ -1000,17 +825,11 @@ export default function QuizPage() {
               </div>
             </div>
             <div style={{ background: "#111827", border: "1px solid #1f2937", borderRadius: 16, padding: isMobile ? "12px" : 20 }}>
-              <div style={{ fontSize: isMobile ? "12px" : 14, fontWeight: 600, marginBottom: 15 }}>Face + Advanced Eye Monitoring</div>
+              <div style={{ fontSize: isMobile ? "12px" : 14, fontWeight: 600, marginBottom: 15 }}>Face Monitoring</div>
               <video ref={videoRef} autoPlay muted playsInline style={{ width: "100%", aspectRatio: "4/3", borderRadius: 10, objectFit: "cover" }} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: isMobile ? "6px" : 10, marginTop: isMobile ? "10px" : 15 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: isMobile ? "6px" : 10, marginTop: isMobile ? "10px" : 15 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "6px" : 10, background: "#0f172a", borderRadius: 10, fontSize: isMobile ? "10px" : 12, border: `1px solid ${faceDetected ? "#22c55e" : "#ef4444"}` }}>
                   <span>Face</span><span style={{ color: faceDetected ? "#22c55e" : "#ef4444" }}>{faceDetected ? "OK" : "No Face"}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "6px" : 10, background: "#0f172a", borderRadius: 10, fontSize: isMobile ? "10px" : 12, border: `1px solid ${!faceDetected ? "#f59e0b" : eyesDetected ? "#22c55e" : "#ef4444"}` }}>
-                  <span>Eyes</span><span style={{ color: !faceDetected ? "#f59e0b" : eyesDetected ? "#22c55e" : "#ef4444" }}>{!faceDetected ? "Wait" : eyesDetected ? "OK" : "No Eyes"}</span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "6px" : 10, background: "#0f172a", borderRadius: 10, fontSize: isMobile ? "10px" : 12, border: `1px solid ${!faceDetected || !eyesDetected ? "#f59e0b" : eyeTrackingStable ? "#22c55e" : "#ef4444"}` }}>
-                  <span>EyeTrack</span><span style={{ color: !faceDetected || !eyesDetected ? "#f59e0b" : eyeTrackingStable ? "#22c55e" : "#ef4444" }}>{!faceDetected || !eyesDetected ? "Wait" : eyeTrackingStable ? `${Math.round(eyeTrackingConfidence * 100)}%` : "Low"}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMobile ? "6px" : 10, background: "#0f172a", borderRadius: 10, fontSize: isMobile ? "10px" : 12 }}>
                   <span>Camera</span><span>{cameraActive ? "On" : "Off"}</span>

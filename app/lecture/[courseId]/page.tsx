@@ -9,8 +9,7 @@ import {
   Monitor, Camera, Clock, CheckCircle, AlertCircle,
   Eye, Play, X, Wifi, Activity, BellRing
 } from "lucide-react"
-import { useRealtimeFaceDetection } from "@/hooks/use-realtime-face-detection"
-import { usePythonEyeTracking } from "@/hooks/use-python-eye-tracking"
+import { useFaceDetection } from "@/hooks/use-face-detection"
 import { auth, saveAlertToFirebase, saveVideoProgressToFirestore } from "@/lib/firebase"
 import { ProgressStorage } from "@/lib/progress-storage"
 import { useHardwareMonitoring } from "@/hooks/use-hardware-monitoring"
@@ -44,9 +43,6 @@ export default function LecturePage() {
   const [timeLimitReached, setTimeLimitReached] = useState(false)
   const [courseBlocked, setCourseBlocked] = useState(false)
   const [faceNotDetectedCountdown, setFaceNotDetectedCountdown] = useState<number | null>(null)
-  const [eyesNotDetectedCountdown, setEyesNotDetectedCountdown] = useState<number | null>(null)
-  const [eyeTrackingUnstableCountdown, setEyeTrackingUnstableCountdown] = useState<number | null>(null)
-  const [eyesClosedCountdown, setEyesClosedCountdown] = useState<number | null>(null)
   
   // Course data
   const [course, setCourse] = useState<any>(null)
@@ -130,53 +126,22 @@ export default function LecturePage() {
     }
   }, [timeLimitReached, courseId, userId, currentVideoIndex])
 
-  // Face and eye detection hook - uses TensorFlow for real-time detection
+  // Face detection hook
   const { 
-    isFaceDetected: isFaceDetectedJS, 
-    isEyesDetected: isEyesDetectedJS,
-    isEyeTrackingStable: isEyeTrackingStableJS,
-    eyeTrackingConfidence: eyeTrackingConfidenceJS,
-    isWebcamActive: cameraActiveJS, 
+    isFaceDetected, 
+    isWebcamActive: cameraActive, 
     startWebcam, 
     stopWebcam, 
     faceDetectionError,
     videoStream
-  } = useRealtimeFaceDetection()
-
-  // Python eye tracking hook
-  const {
-    isConnected: isPythonConnected,
-    isDataFresh: isPythonDataFresh,
-    result: pythonResult,
-    startTracking: startPythonTracking,
-    stopTracking: stopPythonTracking
-  } = usePythonEyeTracking()
-
-  // Combined mode: prefer JS signals when JS camera is available.
-  // Python signals are used when JS camera is unavailable.
-  const usePythonSignals = !cameraActiveJS && isPythonConnected && isPythonDataFresh
-  const isUsingPythonCameraFallback = !cameraActiveJS && usePythonSignals
-  const isFaceDetected = isUsingPythonCameraFallback ? pythonResult.isFaceDetected : isFaceDetectedJS
-  const isEyesDetected = usePythonSignals ? pythonResult.isEyesDetected : isEyesDetectedJS
-  const areEyesClosed = usePythonSignals ? !!pythonResult.isDrowsy : false
-  const isEyeTrackingStable = usePythonSignals
-    ? (pythonResult.isEyeTrackingStable && !pythonResult.isDrowsy)
-    : isEyeTrackingStableJS
-  const eyeTrackingConfidence = usePythonSignals
-    ? (pythonResult.isEyeTrackingStable ? 0.95 : 0.35)
-    : eyeTrackingConfidenceJS
-  const cameraActive = cameraActiveJS || usePythonSignals
-  const showPythonPreview = !cameraActiveJS && isPythonConnected && isPythonDataFresh && !!pythonResult.previewJpeg
-  const pythonPreviewSrc = showPythonPreview ? `data:image/jpeg;base64,${pythonResult.previewJpeg}` : ""
+  } = useFaceDetection()
   
   const previewVideoRef = useRef<HTMLVideoElement>(null)
 
   const videoRef = useRef<HTMLIFrameElement>(null)
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const webcamFallbackTimerRef = useRef<NodeJS.Timeout | null>(null)
   const lastAlertReasonRef = useRef<string>("")
-  const jsCameraActiveRef = useRef(false)
 
   const {
     hardwareStatus,
@@ -197,10 +162,6 @@ export default function LecturePage() {
   })
 
   const motionSeconds = Math.floor(motionDuration / 1000)
-
-  useEffect(() => {
-    jsCameraActiveRef.current = cameraActiveJS
-  }, [cameraActiveJS])
 
   // Load course data
   useEffect(() => {
@@ -272,100 +233,16 @@ export default function LecturePage() {
     }
   }, [faceNotDetectedCountdown])
 
-  // Eyes countdown timer - 5 seconds before pausing learning
-  useEffect(() => {
-    if (!monitoringActive || !cameraActive || !isFaceDetected) {
-      setEyesNotDetectedCountdown(null)
-      return
-    }
-
-    if (!isEyesDetected) {
-      if (eyesNotDetectedCountdown === null) {
-        setEyesNotDetectedCountdown(5)
-      }
-    } else if (eyesNotDetectedCountdown !== null) {
-      setEyesNotDetectedCountdown(null)
-    }
-  }, [monitoringActive, cameraActive, isFaceDetected, isEyesDetected, eyesNotDetectedCountdown])
-
-  useEffect(() => {
-    if (eyesNotDetectedCountdown !== null && eyesNotDetectedCountdown > 0) {
-      const timer = setTimeout(() => {
-        setEyesNotDetectedCountdown(eyesNotDetectedCountdown - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [eyesNotDetectedCountdown])
-
-  // Eye-tracking stability countdown timer - 5 seconds before pausing learning
-  useEffect(() => {
-    if (!monitoringActive || !cameraActive || !isFaceDetected || !isEyesDetected) {
-      setEyeTrackingUnstableCountdown(null)
-      return
-    }
-
-    if (!isEyeTrackingStable) {
-      if (eyeTrackingUnstableCountdown === null) {
-        setEyeTrackingUnstableCountdown(5)
-      }
-    } else if (eyeTrackingUnstableCountdown !== null) {
-      setEyeTrackingUnstableCountdown(null)
-    }
-  }, [monitoringActive, cameraActive, isFaceDetected, isEyesDetected, isEyeTrackingStable, eyeTrackingUnstableCountdown])
-
-  useEffect(() => {
-    if (eyeTrackingUnstableCountdown !== null && eyeTrackingUnstableCountdown > 0) {
-      const timer = setTimeout(() => {
-        setEyeTrackingUnstableCountdown(eyeTrackingUnstableCountdown - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [eyeTrackingUnstableCountdown])
-
-  // Eyes-closed countdown timer - 5 seconds before pausing learning
-  useEffect(() => {
-    if (!monitoringActive || !cameraActive || !isFaceDetected || !isEyesDetected) {
-      setEyesClosedCountdown(null)
-      return
-    }
-
-    if (!areEyesClosed) {
-      if (eyesClosedCountdown !== null) {
-        setEyesClosedCountdown(null)
-      }
-      return
-    }
-
-    if (eyesClosedCountdown === null) {
-      setEyesClosedCountdown(5)
-    }
-  }, [monitoringActive, cameraActive, isFaceDetected, isEyesDetected, areEyesClosed, eyesClosedCountdown])
-
-  useEffect(() => {
-    if (eyesClosedCountdown !== null && eyesClosedCountdown > 0) {
-      const timer = setTimeout(() => {
-        setEyesClosedCountdown(eyesClosedCountdown - 1)
-      }, 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [eyesClosedCountdown])
-
   // Only show blocked overlay after we've tried to start camera and failed
   const showBlockedOverlay = courseBlocked && faceDetectionError && faceDetectionError.includes("denied")
 
   // MASTER ENFORCEMENT FLAG - Source of Truth
   const isFaceReallyMissing = isFaceDetected === false && faceNotDetectedCountdown === 0
-  const isEyesReallyMissing = isFaceDetected && !isEyesDetected && eyesNotDetectedCountdown === 0
-  const isEyesClosedTooLong = isFaceDetected && isEyesDetected && areEyesClosed && eyesClosedCountdown === 0
-  const isEyeTrackingUnstable = isFaceDetected && isEyesDetected && !isEyeTrackingStable && eyeTrackingUnstableCountdown === 0
   const hardwareReady = hardwareOnline && !motionViolation && !isMotionSensorStale
   const canCountSession =
     monitoringActive &&
     cameraActive &&
     !isFaceReallyMissing &&
-    !isEyesReallyMissing &&
-    !isEyesClosedTooLong &&
-    !isEyeTrackingUnstable &&
     tabVisible &&
     hardwareReady &&
     videoPlaying &&
@@ -382,10 +259,7 @@ export default function LecturePage() {
       sensor_stale: "Motion sensor data is stale.",
       excessive_movement: "Excessive movement detected for 5+ seconds.",
       tab_switch: "Tab switch detected during monitored lecture.",
-      face_lost: "Face missing for 5+ seconds during monitored lecture.",
-      eyes_lost: "Eyes not detected for 5+ seconds during monitored lecture.",
-      eyes_closed: "Eyes remained closed for 5+ seconds during lecture.",
-      eye_unstable: "Advanced eye tracking was unstable for 5+ seconds during lecture."
+      face_lost: "Face missing for 5+ seconds during monitored lecture."
     }
 
     try {
@@ -429,21 +303,6 @@ export default function LecturePage() {
       return
     }
 
-    if (isEyesReallyMissing) {
-      void pushHardwareAlert("eyes_lost", { led: true, buzzer: true })
-      return
-    }
-
-    if (isEyesClosedTooLong) {
-      void pushHardwareAlert("eyes_closed", { led: true, buzzer: true })
-      return
-    }
-
-    if (isEyeTrackingUnstable) {
-      void pushHardwareAlert("eye_unstable", { led: true, buzzer: true })
-      return
-    }
-
     if (lastAlertReasonRef.current) {
       lastAlertReasonRef.current = ""
       void clearHardwareAlert()
@@ -455,9 +314,6 @@ export default function LecturePage() {
     motionViolation,
     tabVisible,
     isFaceReallyMissing,
-    isEyesReallyMissing,
-    isEyesClosedTooLong,
-    isEyeTrackingUnstable,
     pushHardwareAlert,
     clearHardwareAlert
   ])
@@ -512,14 +368,6 @@ export default function LecturePage() {
     }
   }, [canCountSession, totalDuration, currentVideoIndex, course])
 
-  useEffect(() => {
-    return () => {
-      if (webcamFallbackTimerRef.current) {
-        clearTimeout(webcamFallbackTimerRef.current)
-      }
-    }
-  }, [])
-
   // Auto-pause video when conditions fail
   useEffect(() => {
     if (!canCountSession && videoPlaying) {
@@ -534,25 +382,10 @@ export default function LecturePage() {
     setMonitoringActive(true)
     setCourseBlocked(false)
     setFaceNotDetectedCountdown(null)
-    setEyesNotDetectedCountdown(null)
-    setEyeTrackingUnstableCountdown(null)
-    setEyesClosedCountdown(null)
     lastAlertReasonRef.current = ""
     void clearHardwareAlert()
-
-    startPythonTracking()
-
-    if (webcamFallbackTimerRef.current) {
-      clearTimeout(webcamFallbackTimerRef.current)
-    }
-    webcamFallbackTimerRef.current = setTimeout(() => {
-      if (!jsCameraActiveRef.current) {
-        // Always try JS webcam once. If camera is busy, hook handles graceful fallback.
-        void startWebcam()
-      }
-    }, 2200)
-
-    console.log("✅ Python started (JS webcam fallback armed)")
+    void startWebcam()
+    console.log("✅ Face monitoring started")
   }
 
   // Stop monitoring
@@ -560,15 +393,7 @@ export default function LecturePage() {
     console.log("🛑 STOP MONITORING")
     setMonitoringActive(false)
     setFaceNotDetectedCountdown(null)
-    setEyesNotDetectedCountdown(null)
-    setEyeTrackingUnstableCountdown(null)
-    setEyesClosedCountdown(null)
-    if (webcamFallbackTimerRef.current) {
-      clearTimeout(webcamFallbackTimerRef.current)
-      webcamFallbackTimerRef.current = null
-    }
     stopWebcam()
-    stopPythonTracking()
     lastAlertReasonRef.current = ""
     void clearHardwareAlert()
 
@@ -626,19 +451,11 @@ export default function LecturePage() {
   const getAttentionStatus = () => {
     if (!monitoringActive) return "Monitoring not started"
     if (!cameraActive) return "Camera not active"
-    if (!isPythonConnected) return "Python eye service offline - Timer paused"
-    if (!isPythonDataFresh && !cameraActiveJS) return "Python eye stream stale - Timer paused"
-    if (areEyesClosed && eyesClosedCountdown !== null && eyesClosedCountdown > 0) return `Eyes closed - Learning pauses in ${eyesClosedCountdown}s`
-    if (isEyesClosedTooLong) return "Eyes closed for 5s - Timer paused"
     if (!hardwareOnline) return "ESP32 offline - Timer paused"
     if (isMotionSensorStale) return "Motion sensor not responding - Timer paused"
     if (motionViolation) return "Excessive movement (5s) - Timer paused"
     if (!isFaceDetected && faceNotDetectedCountdown !== null && faceNotDetectedCountdown > 0) return `Face not detected - Learning pauses in ${faceNotDetectedCountdown}s`
     if (!isFaceDetected) return "Face not detected - Timer paused"
-    if (!isEyesDetected && eyesNotDetectedCountdown !== null && eyesNotDetectedCountdown > 0) return `Eyes not detected - Learning pauses in ${eyesNotDetectedCountdown}s`
-    if (!isEyesDetected) return "Eyes not detected - Timer paused"
-    if (!isEyeTrackingStable && eyeTrackingUnstableCountdown !== null && eyeTrackingUnstableCountdown > 0) return `Eye tracking unstable - Learning pauses in ${eyeTrackingUnstableCountdown}s`
-    if (!isEyeTrackingStable) return "Eye tracking unstable - Timer paused"
     if (!tabVisible) return "Tab switched - Timer paused"
     if (!videoPlaying) return "Video paused"
     if (timeLimitReached) return "Time limit reached"
@@ -768,7 +585,7 @@ export default function LecturePage() {
                   <AlertCircle className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
                   <p className="text-xl mb-2">Learning Paused</p>
                   <p className="text-gray-400 mb-4">{getAttentionStatus()}</p>
-                  {isFaceDetected && isEyesDetected && isEyeTrackingStable && tabVisible && hardwareReady && !videoPlaying && (
+                  {isFaceDetected && tabVisible && hardwareReady && !videoPlaying && (
                     <Button onClick={playVideo}>
                       <Play className="mr-2 h-4 w-4" />
                       Resume Learning
@@ -839,7 +656,7 @@ export default function LecturePage() {
 
       {/* Sidebar - Face Monitoring Panel */}
         <div className="order-2 w-full lg:w-80 xl:w-96 bg-gray-800 border-b lg:border-b-0 lg:border-l border-gray-700 p-3 sm:p-4">
-          <h3 className="font-semibold mb-4">Camara Tracking</h3>
+          <h3 className="font-semibold mb-4">Camera Tracking</h3>
           
           {/* Camera Preview */}
           <div className="mb-4">
@@ -852,22 +669,6 @@ export default function LecturePage() {
                 className="w-full h-full object-cover"
                 style={{ transform: 'scaleX(-1)' }}
               />
-              {showPythonPreview && (
-                <img
-                  src={pythonPreviewSrc}
-                  alt="Python camera preview"
-                  className="absolute inset-0 w-full h-full object-cover"
-                  style={{ transform: "scaleX(-1)" }}
-                />
-              )}
-              {!cameraActiveJS && isPythonConnected && !showPythonPreview && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black/60">
-                  <div className="text-center px-3">
-                    <Activity className="h-8 w-8 text-blue-400 mx-auto mb-2" />
-                    <p className="text-xs text-blue-200">Python service is using the camera</p>
-                  </div>
-                </div>
-              )}
               {!cameraActive && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70">
                   <div className="text-center">
@@ -880,24 +681,9 @@ export default function LecturePage() {
                   </div>
                 </div>
               )}
-              {cameraActive && isFaceDetected && isEyesDetected && isEyeTrackingStable && (
+              {cameraActive && isFaceDetected && (
                 <div className="absolute top-2 right-2 bg-green-500/80 px-2 py-1 rounded text-xs">
-                  Eye Tracking Stable ({Math.round(eyeTrackingConfidence * 100)}%)
-                </div>
-              )}
-              {cameraActive && isFaceDetected && isEyesDetected && areEyesClosed && (
-                <div className="absolute top-2 right-2 max-w-[90%] bg-red-500/80 px-2 py-1 rounded text-xs">
-                  Eyes Closed
-                </div>
-              )}
-              {cameraActive && isFaceDetected && isEyesDetected && !isEyeTrackingStable && !areEyesClosed && (
-                <div className="absolute top-2 right-2 max-w-[90%] bg-orange-500/80 px-2 py-1 rounded text-xs">
-                  Stabilize Eyes
-                </div>
-              )}
-              {cameraActive && isFaceDetected && !isEyesDetected && (
-                <div className="absolute top-2 right-2 max-w-[90%] bg-orange-500/80 px-2 py-1 rounded text-xs">
-                  Face OK, Eyes Missing
+                  Face Detected
                 </div>
               )}
               {cameraActive && !isFaceDetected && (
@@ -906,7 +692,7 @@ export default function LecturePage() {
                 </div>
               )}
             </div>
-            {faceDetectionError && !isPythonConnected && (
+            {faceDetectionError && (
               <p className="text-xs text-red-500 mt-1">{faceDetectionError}</p>
             )}
           </div>
@@ -929,9 +715,7 @@ export default function LecturePage() {
             <FaceMonitoringStatus
               cameraActive={cameraActive}
               isFaceDetected={isFaceDetected}
-              isEyesDetected={isEyesDetected}
               faceNotDetectedCountdown={faceNotDetectedCountdown}
-              eyesNotDetectedCountdown={eyesNotDetectedCountdown}
             />
 
             {/* Tab Visibility Status */}
@@ -983,7 +767,7 @@ export default function LecturePage() {
                 {Math.floor(sessionTime / 60)}:{(sessionTime % 60).toString().padStart(2, '0')} / 30:00
               </p>
               <p className="text-xs text-gray-500 mt-1">
-                Only counts when: Camera ON + Face Detected + Eyes Detected + Eye Tracking Stable + Tab Visible + ESP32 Online + No Motion Violation + Video Playing
+                Only counts when: Camera ON + Face Detected + Tab Visible + ESP32 Online + No Motion Violation + Video Playing
               </p>
             </div>
 
