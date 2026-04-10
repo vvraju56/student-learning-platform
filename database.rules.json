@@ -1,6 +1,32 @@
 {
   "rules": {
-    ".read": true,
-    ".write": true
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "connection-test": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "users": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid",
+        "hardware": {
+          ".read": "true",
+          ".write": "$uid === auth.uid"
+        }
+      }
+    },
+    "hardwareAssignments": {
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid"
+      }
+    },
+    "hardwareStatus": {
+      "$uid": {
+        ".read": "true",
+        ".write": "$uid === auth.uid"
+      }
+    }
   }
 }

@@ -31,10 +31,12 @@ interface RealtimeDashboardProps {
 interface MonitoringState {
   isMonitoring: boolean
   faceDetected: boolean
-  postureStatus: 'Good' | 'Leaning Forward' | 'Poor'
+  postureStatus: 'Good' | 'Leaning Forward' | 'Poor' | 'Unknown'
   attentionStatus: 'Focused' | 'Distracted' | 'Absent'
   cameraActive: boolean
   lastUpdate: number
+  blinkCount: number
+  gazeDirection: string
 }
 
 interface AlertData {
@@ -55,49 +57,12 @@ export function RealtimeMonitoringDashboard({ userId }: RealtimeDashboardProps) 
   const [filterSeverity, setFilterSeverity] = useState<string>('all')
   const [refreshing, setRefreshing] = useState(false)
   
-  // Mock monitoring state (in real app, this would come from context)
-  const [monitoringState, setMonitoringState] = useState<MonitoringState>({
-    isMonitoring: false,
-    faceDetected: false,
-    postureStatus: 'Good',
-    attentionStatus: 'Focused',
-    cameraActive: false,
-    lastUpdate: Date.now()
-  })
-  
-  // Mock alert data (in real app, this would come from context or API)
-  const [alerts, setAlerts] = useState<AlertData[]>([
-    {
-      id: '1',
-      type: 'attention',
-      severity: 'low',
-      message: 'Real-time monitoring system initialized',
-      timestamp: Date.now(),
-      courseId: 'web-development',
-      videoId: 'html-basics'
-    },
-    {
-      id: '2',
-      type: 'posture',
-      severity: 'medium',
-      message: 'User leaning too close to screen',
-      timestamp: Date.now() - 3600000,
-      courseId: 'web-development',
-      videoId: 'css-fundamentals'
-    },
-    {
-      id: '3',
-      type: 'face',
-      severity: 'high',
-      message: 'Face not detected for 3 seconds',
-      timestamp: Date.now() - 7200000,
-      courseId: 'web-development',
-      videoId: 'javascript-intro'
-    }
-  ])
-  
   const realtimeMonitoring = useRealtimeMonitoring(userId)
   const videoValidation = useVideoValidation(userId)
+  
+  // Use actual monitoring state from the hook
+  const monitoringState = realtimeMonitoring.state
+  const alerts = realtimeMonitoring.events as AlertData[]
   
   // Filter alerts based on criteria
   const filteredAlerts = alerts.filter(alert => {
@@ -262,40 +227,79 @@ export function RealtimeMonitoringDashboard({ userId }: RealtimeDashboardProps) 
           {/* Monitoring Status Overview */}
           <div className="col-lg-8">
             <div className="card bg-dark text-white mb-4 p-3 rounded">
-              <h5 className="mb-3 d-flex align-items-center gap-2">
-                <Activity className="w-5 h-5" />
-                Real-time Monitoring Status
-              </h5>
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h5 className="mb-0 d-flex align-items-center gap-2">
+                  <Activity className="w-5 h-5" />
+                  Real-time Monitoring Status
+                </h5>
+                <Badge bg="secondary">Face-Only Mode</Badge>
+              </div>
+
+              {/* Visual Tracking Feed */}
+              <div className="position-relative bg-black rounded overflow-hidden mb-4" style={{ height: '300px' }}>
+                <canvas 
+                  ref={realtimeMonitoring.canvasRef} 
+                  className="w-100 h-100" 
+                  style={{ objectFit: 'contain' }}
+                />
+                {!monitoringState.cameraActive && (
+                  <div className="position-absolute top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center bg-dark bg-opacity-75">
+                    <div className="text-center">
+                      <Camera className="w-12 h-12 text-muted mb-2 mx-auto" />
+                      <p className="text-muted">Camera Inactive</p>
+                    </div>
+                  </div>
+                )}
+              </div>
               
               <div className="row g-3 text-center">
-                <div className="col-md-4">
+                <div className="col-md-3">
                   <div className="text-center p-3 rounded bg-success">
                     <Camera className="w-4 h-4" />
-                    <div className="mt-2">Camera</div>
+                    <div className="mt-2 text-white">Camera</div>
                     <div className="text-white small">Face Detection</div>
                   </div>
-                  <div className="text-center p-2 rounded bg-light text-dark">
-                    <Eye className="w-6 h-6" />
-                    <div className="mt-2">Face Status</div>
-                    <div className="text-dark small">{
+                  <div className="text-center p-2 rounded bg-light text-dark mt-2">
+                    <div className="mt-2 fw-bold text-dark">{
                       monitoringState.faceDetected ? 'Detected' : 'Not Detected'
                     }</div>
                   </div>
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-3">
                   <div className="text-center p-3 rounded bg-primary">
                     <Monitor className="w-4 h-4" />
-                    <div className="mt-2">Posture</div>
+                    <div className="mt-2 text-white">Posture</div>
                     <div className="text-white small">{
                       monitoringState.postureStatus
                     }</div>
                   </div>
+                  <div className="text-center p-2 rounded bg-light text-dark mt-2">
+                    <div className="mt-2 fw-bold text-dark">{
+                      monitoringState.postureStatus
+                    }</div>
+                  </div>
                 </div>
-                <div className="col-md-4">
+                <div className="col-md-3">
                   <div className="text-center p-3 rounded bg-info">
+                    <Eye className="w-4 h-4" />
+                    <div className="mt-2 text-white">Monitoring Mode</div>
+                    <div className="text-white small">Face Detection Only</div>
+                  </div>
+                  <div className="text-center p-2 rounded bg-light text-dark mt-2">
+                    <div className="text-dark small">Gaze: <span className="fw-bold">N/A</span></div>
+                    <div className="text-dark small">Blinks: <span className="fw-bold">N/A</span></div>
+                  </div>
+                </div>
+                <div className="col-md-3">
+                  <div className="text-center p-3 rounded bg-warning">
                     <Activity className="w-4 h-4" />
-                    <div className="mt-2">Attention</div>
-                    <div className="text-white small">{
+                    <div className="mt-2 text-dark">Attention</div>
+                    <div className="text-dark small">{
+                      monitoringState.attentionStatus
+                    }</div>
+                  </div>
+                  <div className="text-center p-2 rounded bg-light text-dark mt-2">
+                    <div className="mt-2 fw-bold text-dark">{
                       monitoringState.attentionStatus
                     }</div>
                   </div>

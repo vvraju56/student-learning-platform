@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { useFaceDetection } from './use-face-detection'
 // import { saveAlertToFirebase } from '../lib/monitoring-service'
 
 // Firebase service mock for now
@@ -29,6 +30,8 @@ export interface RealtimeMonitoringState {
   attentionStatus: 'Focused' | 'Distracted' | 'Absent'
   cameraActive: boolean
   lastUpdate: number
+  blinkCount: number
+  gazeDirection: string
 }
 
 export interface MonitoringHook {
@@ -42,9 +45,22 @@ export interface MonitoringHook {
   addEvent: (event: Omit<MonitoringEvent, 'timestamp'>) => void
   getEventsByType: (type: MonitoringEvent['type']) => MonitoringEvent[]
   setVideoElementRef: (element: HTMLIFrameElement | null) => void
+  canvasRef: React.RefObject<HTMLCanvasElement | null>
+  toggleLandmarks: () => void
 }
 
 export function useRealtimeMonitoring(userId: string): MonitoringHook {
+  const {
+    isFaceDetected,
+    isWebcamActive,
+    startWebcam,
+    stopWebcam
+  } = useFaceDetection()
+
+  // kept for API compatibility with existing components
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const toggleLandmarks = useCallback(() => {}, [])
+  
   const [state, setState] = useState<RealtimeMonitoringState>({
     isMonitoring: false,
     isVideoPlaying: false,
@@ -52,15 +68,34 @@ export function useRealtimeMonitoring(userId: string): MonitoringHook {
     postureStatus: 'Good',
     attentionStatus: 'Focused',
     cameraActive: false,
-    lastUpdate: Date.now()
+    lastUpdate: Date.now(),
+    blinkCount: 0,
+    gazeDirection: 'N/A'
   })
+
+  // Sync face-only state to our internal state
+  useEffect(() => {
+    if (state.isMonitoring) {
+      const nextAttention: RealtimeMonitoringState['attentionStatus'] =
+        !isFaceDetected ? 'Absent' : state.postureStatus === 'Good' ? 'Focused' : 'Distracted'
+
+      setState(prev => ({
+        ...prev,
+        faceDetected: isFaceDetected,
+        attentionStatus: nextAttention,
+        cameraActive: isWebcamActive,
+        lastUpdate: Date.now(),
+        blinkCount: 0,
+        gazeDirection: 'N/A'
+      }))
+
+    }
+  }, [isFaceDetected, isWebcamActive, state.isMonitoring, state.postureStatus])
   
   const [events, setEvents] = useState<MonitoringEvent[]>([])
   const [validWatchTime, setValidWatchTime] = useState(0)
   
   const videoRef = useRef<HTMLIFrameElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
-  const faceDetectionIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const postureIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
@@ -116,90 +151,26 @@ export function useRealtimeMonitoring(userId: string): MonitoringHook {
     }))
   }, [])
   
-  // Enhanced face detection with simulation (fallback for missing models)
+  // Face-only detection
   const startFaceDetection = useCallback(async () => {
     try {
-      console.log('📷 Starting enhanced face detection...')
+      console.log('📷 Starting face monitoring...')
+      await startWebcam()
       
-      // Request webcam access
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user'
-        }
-      })
-      
-      streamRef.current = stream
-      
-      // Create hidden video element for face detection
-      const video = document.createElement('video')
-      video.srcObject = stream
-      video.autoplay = true
-      video.playsInline = true
-      video.muted = true
-      
-      await new Promise((resolve) => {
-        video.addEventListener('loadeddata', resolve, { once: true })
-      })
-      
-      let faceMissingCount = 0
-      const maxFaceMissingCount = 5 // 5 seconds threshold
-      
-      faceDetectionIntervalRef.current = setInterval(() => {
-        // Simulate face detection with realistic patterns
-        const detectionProbability = Math.random()
-        
-        if (detectionProbability > 0.15) {
-          // 85% chance face is detected when user is "present"
-          if (!state.faceDetected) {
-            setState(prev => ({ ...prev, faceDetected: true, lastUpdate: Date.now() }))
-            console.log('👤 Face detected')
-          }
-          faceMissingCount = 0
-        } else if (detectionProbability > 0.05) {
-          // 10% chance face temporarily lost (looking away)
-          if (state.faceDetected) {
-            setState(prev => ({ ...prev, faceDetected: false, lastUpdate: Date.now() }))
-            console.log('👤 Face temporarily not detected (looking away)')
-          }
-          faceMissingCount++
-        } else {
-          // 5% chance no face detected (left desk)
-          if (state.faceDetected) {
-            setState(prev => ({ ...prev, faceDetected: false, lastUpdate: Date.now() }))
-            console.log('👤 No face detected (user may have left)')
-          }
-          faceMissingCount++
-        }
-        
-        // Auto-pause if face missing for too long
-        if (faceMissingCount >= maxFaceMissingCount) {
-          console.log('🚫 Face not detected for 5 seconds - Auto-pausing')
-          pauseVideo()
-          addEvent({
-            type: 'face',
-            severity: 'high',
-            message: 'Face not detected for 5 seconds',
-          })
-          setState(prev => ({ 
-            ...prev, 
-            faceDetected: false,
-            attentionStatus: 'Absent',
-            lastUpdate: Date.now()
-          }))
-        }
-      }, 1000) // Check every second
-      
+      setState(prev => ({
+        ...prev,
+        cameraActive: true,
+        lastUpdate: Date.now()
+      }))
     } catch (error) {
-      console.error('Failed to start face detection:', error)
+      console.error('Failed to start face tracking:', error)
       addEvent({
         type: 'face',
         severity: 'high',
-        message: `Face detection failed: ${error}`,
+        message: `Face monitoring failed to start: ${error}`,
       })
     }
-  }, [pauseVideo, addEvent])
+  }, [startWebcam, addEvent])
   
   // Enhanced posture monitoring with ESP32 support
   const startPostureMonitoring = useCallback(async () => {
@@ -273,12 +244,12 @@ export function useRealtimeMonitoring(userId: string): MonitoringHook {
         }
         
         clearTimeout(timeoutId)
-      } catch (error) {
+      } catch {
         console.log('📱 ESP32 not available, falling back to webcam-based detection')
       }
       
       // Fallback to webcam-based posture monitoring
-      if (!esp32Connected && streamRef.current) {
+      if (!esp32Connected && isWebcamActive) {
         console.log('📹 Using webcam-based posture detection')
         
         postureIntervalRef.current = setInterval(() => {
@@ -437,20 +408,15 @@ export function useRealtimeMonitoring(userId: string): MonitoringHook {
   const stopMonitoring = useCallback(() => {
     console.log('⏹️ Stopping real-time monitoring')
     
+    // Stop camera monitoring
+    stopWebcam()
+
     // Clear all intervals
-    if (faceDetectionIntervalRef.current) {
-      clearInterval(faceDetectionIntervalRef.current)
-    }
     if (postureIntervalRef.current) {
       clearInterval(postureIntervalRef.current)
     }
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current)
-    }
-    
-    // Stop webcam stream
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
     }
     
     setState(prev => ({
@@ -465,7 +431,7 @@ export function useRealtimeMonitoring(userId: string): MonitoringHook {
     }))
     
     console.log('✅ Real-time monitoring stopped')
-  }, [])
+  }, [stopWebcam])
   
   const getEventsByType = useCallback((type: MonitoringEvent['type']) => {
     return events.filter(event => event.type === type)
@@ -505,7 +471,9 @@ export function useRealtimeMonitoring(userId: string): MonitoringHook {
     resumeVideo,
     addEvent,
     getEventsByType,
-    setVideoElementRef
+    setVideoElementRef,
+    canvasRef,
+    toggleLandmarks
   }
 }
 

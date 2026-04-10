@@ -623,7 +623,7 @@ export function VideoPlayerMonitored({
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               Please enable camera permissions in your browser settings and refresh the page to continue learning.
-            </ErtDescription>
+            </AlertDescription>
           </Alert>
           <Button onClick={() => window.location.reload()} variant="outline">
             Refresh Page
