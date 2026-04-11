@@ -9,6 +9,7 @@ import { Monitor, Clock, CheckCircle, AlertCircle, Wifi, Activity, BellRing } fr
 import { auth, saveVideoProgressToFirestore } from "@/lib/firebase"
 import { ProgressStorage } from "@/lib/progress-storage"
 import { useHardwareMonitoring } from "@/hooks/use-hardware-monitoring"
+import { useEyeMonitoring } from "@/hooks/use-eye-monitoring"
 import FaceMonitoringComponent from "@/components/face-monitoring-system"
 
 export default function LecturePage() {
